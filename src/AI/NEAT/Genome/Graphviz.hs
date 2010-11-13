@@ -9,9 +9,11 @@ module AI.NEAT.Genome.Graphviz
 
 ------------------------------------------------------------------------------
 import Data.Graph.Inductive ( Node )
-import Data.GraphViz ( Attributes, Attribute (..), Shape (..),
+import Data.GraphViz ( GlobalAttributes (..), Attributes, Attribute (..),
+                       Shape (..),
                        GraphvizParams (..), DotGraph,
-                       GraphvizCanvas ( Xlib ),
+                       GraphvizCanvas ( Xlib ), Color (..), X11Color (..),
+                       StyleItem (..), StyleName ( Filled ),
                        graphToDot, defaultParams, nonClusteredParams,
                        runGraphvizCanvas' )
 
@@ -25,18 +27,27 @@ import AI.NEAT.Genome.Link   ( LinkGene (..) )
 
 
 ------------------------------------------------------------------------------
-inputAttrs :: Attributes
-inputAttrs = []
+globalAttrs :: [GlobalAttributes]
+globalAttrs = [ NodeAttrs [ Style [SItem Filled []]
+                          , Shape Circle
+                          , FillColor (X11Color White)
+                          ]
+              ]
 
 
 ------------------------------------------------------------------------------
-outputAttrs :: Attributes
-outputAttrs = [Shape DoubleCircle]
+inputAttrs :: Attributes
+inputAttrs = [ FillColor (X11Color Gray), PenWidth 3 ]
 
 
 ------------------------------------------------------------------------------
 biasAttrs :: Attributes
-biasAttrs = []
+biasAttrs = [ FillColor (X11Color DarkSlateGray), PenWidth 3 ]
+
+
+------------------------------------------------------------------------------
+outputAttrs :: Attributes
+outputAttrs = [ Shape DoubleCircle, FillColor (X11Color Gray) ]
 
 
 ------------------------------------------------------------------------------
@@ -54,7 +65,10 @@ neuronGeneAttrs (NeuronGene _ Hidden _ _) = hiddenAttrs
 
 ------------------------------------------------------------------------------
 graphvizParams :: GraphvizParams NeuronGene LinkGene () NeuronGene
-graphvizParams = nonClusteredParams { fmtNode = neuronGeneAttrs . nodeToGene }
+graphvizParams =
+  nonClusteredParams { globalAttributes = globalAttrs
+                     , fmtNode          = neuronGeneAttrs . nodeToGene
+                     }
   where nodeToGene = snd
 
 

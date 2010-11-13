@@ -29,4 +29,4 @@ instance Show LinkGene where
 ------------------------------------------------------------------------------
 -- TODO: innovations
 linkGene :: NeuronId -> NeuronId -> Double -> NEAT LinkGene
-linkGene from to weight = return $ LinkGene from to weight False
+linkGene from to weight = return $ LinkGene from to weight True

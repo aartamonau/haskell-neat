@@ -13,7 +13,7 @@ import Data.GraphViz ( GlobalAttributes (..), Attributes, Attribute (..),
                        Shape (..), GraphID ( Str ),
                        GraphvizParams (..), DotGraph,
                        GraphvizCanvas ( Xlib ), Color (..), X11Color (..),
-                       StyleItem (..), StyleName ( Filled ),
+                       StyleItem (..), StyleName (..),
                        LNodeCluster, NodeCluster (..), Label ( StrLabel ),
                        graphToDot, defaultParams,
                        runGraphvizCanvas' )
@@ -95,7 +95,11 @@ neuronGeneAttrs (NeuronGene _ Hidden _ _) = hiddenAttrs
 
 ------------------------------------------------------------------------------
 linkGeneAttrs :: LinkGene -> Attributes
-linkGeneAttrs link = [ Label (StrLabel (printf "%.3f" $ weight link)) ]
+linkGeneAttrs link = [ Label (StrLabel (printf "%.3f" $ weight link))
+                     , style
+                     ]
+  where style | enabled link = Style [SItem Solid []]
+              | otherwise    = Style [SItem Dashed []]
 
 
 ------------------------------------------------------------------------------

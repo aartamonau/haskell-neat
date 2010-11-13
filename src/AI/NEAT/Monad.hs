@@ -11,7 +11,7 @@ module AI.NEAT.Monad
 ------------------------------------------------------------------------------
 import Control.Monad.Trans              ( MonadTrans, lift )
 
-import Control.Monad.Reader             ( MonadReader )
+import Control.Monad.Reader             ( MonadReader, asks )
 import Control.Monad.Trans.Reader       ( ReaderT, runReaderT )
 
 import Control.Monad.State              ( MonadState, gets, modify )
@@ -86,3 +86,14 @@ randomR (l, u) =
 ------------------------------------------------------------------------------
 random :: NEAT Double
 random = randomR (-1, 1)
+
+
+------------------------------------------------------------------------------
+diceRoll :: (NEATConfig -> Double) -> NEAT a -> NEAT a -> NEAT a
+diceRoll rate success failure = do
+  rateValue <- asks rate
+  r         <- randomR (0, 1)
+
+  if r <= rateValue
+    then success
+    else failure

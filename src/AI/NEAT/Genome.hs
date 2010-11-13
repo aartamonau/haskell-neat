@@ -12,7 +12,8 @@ import Control.Monad ( replicateM )
 import Data.Graph.Inductive ( Gr, mkGraph )
 
 
-import AI.NEAT.Monad ( NEAT, random )
+import AI.NEAT.Monad ( NEAT, random, diceRoll )
+import AI.NEAT.Config ( NEATConfig ( addNeuronRate ) )
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..) )
 
@@ -41,3 +42,10 @@ genome inputs outputs = do
 
   return $ Genome $ mkGraph [ (Neuron.id n, n) | n <- is ++ [bias] ++ os ]
                             [ (Link.from l, Link.to l, l) | l <- links ]
+
+
+------------------------------------------------------------------------------
+addNeuron :: Genome -> NEAT Genome
+addNeuron genome = diceRoll addNeuronRate doAddNeuron (return genome)
+  where doAddNeuron :: NEAT Genome
+        doAddNeuron = undefined

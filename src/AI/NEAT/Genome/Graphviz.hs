@@ -18,6 +18,8 @@ import Data.GraphViz ( GlobalAttributes (..), Attributes, Attribute (..),
                        graphToDot, defaultParams,
                        runGraphvizCanvas' )
 
+import Text.Printf ( printf )
+
 
 ------------------------------------------------------------------------------
 import AI.NEAT.Common        ( NeuronType (..) )
@@ -92,6 +94,11 @@ neuronGeneAttrs (NeuronGene _ Hidden _ _) = hiddenAttrs
 
 
 ------------------------------------------------------------------------------
+linkGeneAttrs :: LinkGene -> Attributes
+linkGeneAttrs link = [ Label (StrLabel (printf "%.3f" $ weight link)) ]
+
+
+------------------------------------------------------------------------------
 graphvizParams :: GraphvizParams NeuronGene LinkGene Cluster NeuronGene
 graphvizParams =
   defaultParams { globalAttributes = globalAttrs
@@ -99,8 +106,10 @@ graphvizParams =
                 , clusterID        = Just . Str . clusterName
                 , fmtCluster       = clusterAttrs
                 , fmtNode          = neuronGeneAttrs . nodeToGene
+                , fmtEdge          = linkGeneAttrs . linkToGene
                 }
-  where nodeToGene = snd
+  where nodeToGene           = snd
+        linkToGene (_, _, g) = g
 
         genomeClusterBy lnode =
           case clusterize (nodeToGene lnode) of

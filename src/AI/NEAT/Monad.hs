@@ -17,7 +17,7 @@ import Control.Monad.Trans.Reader       ( ReaderT, runReaderT )
 import Control.Monad.State              ( MonadState, gets, modify )
 import Control.Monad.Trans.State.Strict ( StateT, evalStateT )
 
-import Control.Monad.Mersenne.Random    ( Rand, evalRandom )
+import Control.Monad.Mersenne.Random    ( Rand (..), R (..), evalRandom )
 import qualified Control.Monad.Mersenne.Random as Random
 
 import Data.IntMap ( IntMap )
@@ -54,8 +54,14 @@ emptyNEATState = NEATState 0 0 IntMap.empty IntMap.empty
 newtype NEAT a =
   NEAT { unNEAT :: StateT NEATState (ReaderT NEATConfig Rand) a }
   deriving (Monad,
+            Functor,
             MonadReader NEATConfig,
             MonadState NEATState)
+
+
+instance Functor Rand where
+  fmap f (Rand r) = Rand (\mt -> fmapR f (r mt))
+    where fmapR f (R x mt) = R (f x) mt
 
 
 ------------------------------------------------------------------------------
@@ -76,6 +82,11 @@ getNeuronId = do
 
 
 ------------------------------------------------------------------------------
+neuronsCount :: NEAT Int
+neuronsCount = gets nextNeuronId
+
+
+------------------------------------------------------------------------------
 randomR :: (Double, Double) -> NEAT Double
 randomR (l, u) =
   NEAT $ do
@@ -86,6 +97,17 @@ randomR (l, u) =
 ------------------------------------------------------------------------------
 random :: NEAT Double
 random = randomR (-1, 1)
+
+
+------------------------------------------------------------------------------
+randomInt :: NEAT Int
+randomInt =
+  NEAT $ lift $ lift $ Random.getInt
+
+
+------------------------------------------------------------------------------
+randomIntR :: Int -> NEAT Int
+randomIntR r = fmap (`mod` r) randomInt
 
 
 ------------------------------------------------------------------------------

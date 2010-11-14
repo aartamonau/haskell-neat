@@ -25,8 +25,11 @@ import Text.Printf ( printf )
 import AI.NEAT.Common        ( NeuronType (..) )
 
 import AI.NEAT.Genome        ( Genome (..) )
-import AI.NEAT.Genome.Neuron ( NeuronGene (..) )
-import AI.NEAT.Genome.Link   ( LinkGene (..) )
+
+import AI.NEAT.Genome.Neuron ( NeuronGene ( NeuronGene ) )
+
+import AI.NEAT.Genome.Link   ( LinkGene ( LinkGene ) )
+import qualified AI.NEAT.Genome.Link as Link
 
 
 ------------------------------------------------------------------------------
@@ -95,11 +98,11 @@ neuronGeneAttrs (NeuronGene _ Hidden _ _) = hiddenAttrs
 
 ------------------------------------------------------------------------------
 linkGeneAttrs :: LinkGene -> Attributes
-linkGeneAttrs link = [ Label (StrLabel (printf "%.3f" $ weight link))
+linkGeneAttrs link = [ Label (StrLabel (printf "%.3f" $ Link.weight link))
                      , style
                      ]
-  where style | enabled link = Style [SItem Solid []]
-              | otherwise    = Style [SItem Dashed []]
+  where style | Link.isEnabled link = Style [SItem Solid []]
+              | otherwise           = Style [SItem Dashed []]
 
 
 ------------------------------------------------------------------------------

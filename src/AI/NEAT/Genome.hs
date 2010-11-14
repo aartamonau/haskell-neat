@@ -10,9 +10,10 @@ module AI.NEAT.Genome
 
 ------------------------------------------------------------------------------
 import Control.Monad ( replicateM )
-import Data.Graph.Inductive ( Gr,
-                              mkGraph, context, lab', inn', out',
+
+import Data.Graph.Inductive ( mkGraph, context, lab', inn', out',
                               insNode, insEdges )
+import Data.Graph.Inductive.PatriciaTree ( Gr )
 
 
 import AI.NEAT.Monad ( NEAT, random, randomIntR, diceRoll, neuronsCount )

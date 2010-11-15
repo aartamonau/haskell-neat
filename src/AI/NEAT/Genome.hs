@@ -9,6 +9,7 @@ module AI.NEAT.Genome
 
 
 ------------------------------------------------------------------------------
+import Control.Arrow ( (>>>) )
 import Control.Monad ( replicateM )
 
 import Data.Graph.Inductive ( mkGraph, context, lab', inn', out',
@@ -26,6 +27,8 @@ import qualified AI.NEAT.Genome.Neuron as Neuron
 
 import AI.NEAT.Genome.Link ( LinkGene, linkGene )
 import qualified AI.NEAT.Genome.Link as Link
+
+import AI.NEAT.Utils.Graph ( modifyEdges )
 
 
 ------------------------------------------------------------------------------
@@ -55,20 +58,22 @@ addNeuron genome = diceRoll addNeuronRate addNeuronLoop (return genome)
   where addNeuronLoop = do
           link <- randomLink genome
           if suitableLink link
-            then doAddNeuron link  -- do something here
+            then doAddNeuron link
             else addNeuronLoop
 
         doAddNeuron (src, link, dst) = do
           neuron <- neuronGene Hidden
 
-          -- TODO: weight
           link_a <- linkGene src neuron 1
-          link_b <- linkGene neuron dst 1
+          link_b <- linkGene neuron dst (Link.weight link)
 
-          -- TODO: refine
-          return (Genome (insEdges [Link.toLEdge link_a, Link.toLEdge link_b]
-                                   (insNode (Neuron.toLNode neuron)
-                                            (graph genome))))
+
+          return . Genome $
+            (insNode     (Neuron.toLNode neuron)                    >>>
+             insEdges    [Link.toLEdge link_a, Link.toLEdge link_b] >>>
+             modifyEdges (Neuron.id src, Neuron.id dst)
+                         (\l -> l { Link.isEnabled = False }))
+            (graph genome)
 
         suitableLink (src, link, _) | not (Link.isEnabled link) = False
                                     | Link.isRecurrent link     = False

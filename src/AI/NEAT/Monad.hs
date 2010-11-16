@@ -10,7 +10,7 @@ module AI.NEAT.Monad
 
 
 ------------------------------------------------------------------------------
-import Control.Applicative              ( Applicative )
+import Control.Applicative              ( Applicative, (<$>) )
 
 import Control.Monad.Trans              ( MonadTrans, lift )
 
@@ -23,8 +23,12 @@ import Control.Monad.Trans.State.Strict ( StateT, evalStateT )
 import Control.Monad.Mersenne.Random    ( Rand (..), R (..), evalRandom )
 import qualified Control.Monad.Mersenne.Random as Random
 
+
 import Data.IntMap ( IntMap )
 import qualified Data.IntMap as IntMap
+
+import Data.Map ( Map )
+import qualified Data.Map as Map
 
 import System.Random.Mersenne.Pure64    ( newPureMT )
 
@@ -33,7 +37,7 @@ import System.Random.Mersenne.Pure64    ( newPureMT )
 import AI.NEAT.Common             ( NeuronId )
 
 import AI.NEAT.Innovations        ( InnovationId )
-import AI.NEAT.Innovations.Neuron ( NeuronInnovation )
+import AI.NEAT.Innovations.Neuron ( NeuronInnovation ( NeuronInnovation ) )
 import AI.NEAT.Innovations.Link   ( LinkInnovation )
 
 import AI.NEAT.Config             ( NEATConfig, defaultNEATConfig )
@@ -43,14 +47,14 @@ import AI.NEAT.Config             ( NEATConfig, defaultNEATConfig )
 data NEATState =
   NEATState { nextNeuronId      :: !NeuronId
             , nextInnovationId  :: !InnovationId
-            , neuronInnovations :: !(IntMap NeuronInnovation)
+            , neuronInnovations :: !(Map (NeuronId, NeuronId) NeuronInnovation)
             , linkInnovations   :: !(IntMap LinkInnovation)
             }
 
 
 ------------------------------------------------------------------------------
 emptyNEATState :: NEATState
-emptyNEATState = NEATState 0 0 IntMap.empty IntMap.empty
+emptyNEATState = NEATState 0 0 Map.empty IntMap.empty
 
 
 ------------------------------------------------------------------------------
@@ -91,6 +95,15 @@ neuronsCount = gets nextNeuronId
 
 
 ------------------------------------------------------------------------------
+getInnovationId :: NEAT InnovationId
+getInnovationId = do
+  innovationId <- gets nextInnovationId
+  modify (\state -> state { nextInnovationId = innovationId + 1 })
+
+  return innovationId
+
+
+------------------------------------------------------------------------------
 randomR :: (Double, Double) -> NEAT Double
 randomR (l, u) =
   NEAT $ do
@@ -123,3 +136,26 @@ diceRoll rate success failure = do
   if r <= rateValue
     then success
     else failure
+
+
+------------------------------------------------------------------------------
+-- | Finds neuron innovations;
+findNeuronInnovation :: (NeuronId, NeuronId)
+                     -> NEAT (Maybe NeuronInnovation)
+findNeuronInnovation edge = Map.lookup edge <$> gets neuronInnovations
+
+
+------------------------------------------------------------------------------
+-- | Creates new neuron innovation.
+createNeuronInnovation :: (NeuronId, NeuronId) -- ^ Edge that is split by new
+                                               -- neuron.
+                       -> NeuronId             -- ^ Id of new neuron.
+                       -> NEAT NeuronInnovation
+createNeuronInnovation edge@(src, dst) neuron = do
+  id <- getInnovationId
+  let innovation = NeuronInnovation id neuron src dst
+
+  newDb <- Map.insert edge innovation <$> gets neuronInnovations
+  modify (\s -> s { neuronInnovations = newDb })
+
+  return innovation

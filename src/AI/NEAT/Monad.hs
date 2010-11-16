@@ -5,10 +5,13 @@
 ------------------------------------------------------------------------------
 module AI.NEAT.Monad
        -- TODO: export list
+       -- TODO: restructure the code
        where
 
 
 ------------------------------------------------------------------------------
+import Control.Applicative              ( Applicative )
+
 import Control.Monad.Trans              ( MonadTrans, lift )
 
 import Control.Monad.Reader             ( MonadReader, asks )
@@ -55,6 +58,7 @@ newtype NEAT a =
   NEAT { unNEAT :: StateT NEATState (ReaderT NEATConfig Rand) a }
   deriving (Monad,
             Functor,
+            Applicative,
             MonadReader NEATConfig,
             MonadState NEATState)
 

@@ -84,6 +84,8 @@ addNeuron genome = diceRoll addNeuronRate addNeuronLoop (return genome)
 ------------------------------------------------------------------------------
 randomNeuron :: Genome -> NEAT NeuronGene
 randomNeuron g = do
+  -- TODO: this will work only when the genome has all the neurons introduced
+  -- during evolution of all the genomes inside the thread of evolution
   n <- randomIntR =<< neuronsCount
   return $ getNeuron g n
 

@@ -54,7 +54,7 @@ genome inputs outputs = do
     -- TODO: bias to old links
     -- TODO: innovations
 addNeuron :: Genome -> NEAT Genome
-addNeuron genome = diceRoll addNeuronRate addNeuronLoop (return genome)
+addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
   where addNeuronLoop = do
           link <- randomLink genome
           if suitableLink link

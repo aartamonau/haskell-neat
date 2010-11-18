@@ -129,7 +129,7 @@ randomIntR r = fmap (`mod` r) randomInt
 
 ------------------------------------------------------------------------------
 diceRoll :: (NEATConfig -> Double) -> NEAT a -> NEAT a -> NEAT a
-diceRoll rate success failure = do
+diceRoll rate failure success = do
   rateValue <- asks rate
   r         <- randomR (0, 1)
 

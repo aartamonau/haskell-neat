@@ -11,11 +11,18 @@ module AI.NEAT.Config
 
 ------------------------------------------------------------------------------
 data NEATConfig =
-  NEATConfig { addNeuronRate :: Double
+  NEATConfig { addNeuronRate             :: Double
+
+             , activationMutationRate    :: Double
+             , maxActivationPerturbation :: Double
              }
 
 
 ------------------------------------------------------------------------------
 defaultNEATConfig :: NEATConfig
 defaultNEATConfig =
-  NEATConfig { addNeuronRate = 0.08 }
+  NEATConfig { addNeuronRate             = 0.08
+
+             , activationMutationRate    = 0.1
+             , maxActivationPerturbation = 0.1
+             }

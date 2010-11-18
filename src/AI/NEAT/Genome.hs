@@ -9,16 +9,21 @@ module AI.NEAT.Genome
 
 
 ------------------------------------------------------------------------------
+import Control.Applicative ( (<$>) )
 import Control.Arrow ( (>>>) )
 import Control.Monad ( replicateM )
+import Control.Monad.Reader ( asks )
 
 import Data.Graph.Inductive ( mkGraph, context, lab', inn', out',
                               insNode, insEdges )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
 
 
-import AI.NEAT.Monad ( NEAT, random, randomIntR, diceRoll, neuronsCount )
-import AI.NEAT.Config ( NEATConfig ( addNeuronRate ) )
+import AI.NEAT.Monad ( NEAT,
+                       random, randomR, randomIntR, diceRoll, neuronsCount )
+import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
+                                     activationMutationRate,
+                                     maxActivationPerturbation ) )
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..) )
 
@@ -28,7 +33,7 @@ import qualified AI.NEAT.Genome.Neuron as Neuron
 import AI.NEAT.Genome.Link ( LinkGene, linkGene )
 import qualified AI.NEAT.Genome.Link as Link
 
-import AI.NEAT.Utils.Graph ( modifyEdges )
+import AI.NEAT.Utils.Graph ( modifyEdges, nmapM )
 
 
 ------------------------------------------------------------------------------
@@ -117,3 +122,23 @@ randomLink g = do
           getNeuron g (Link.to link))
 
   where label (_, _, l) = l
+
+
+------------------------------------------------------------------------------
+-- | Mutates activation responses of neurons.
+mutateActivationResponses :: Genome -- ^ Genome to perform mutations on.
+                          -> NEAT Genome
+mutateActivationResponses g = Genome <$> nmapM doMutate (graph g)
+  where doMutate :: NeuronGene -> NEAT NeuronGene
+        doMutate n =
+          diceRoll activationMutationRate (return n) $ do
+            ar <- mutateAR (Neuron.activationResponse n)
+            return n { Neuron.activationResponse = ar }
+
+        -- TODO: thread perturbation from outside?
+        mutateAR :: Double -> NEAT Double
+        mutateAR ar = do
+          perturbation <- asks maxActivationPerturbation
+          r            <- randomR (-perturbation, perturbation)
+
+          return (ar + r)

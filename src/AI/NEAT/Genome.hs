@@ -23,7 +23,11 @@ import AI.NEAT.Monad ( NEAT,
                        random, randomR, randomIntR, diceRoll, neuronsCount )
 import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
                                      activationMutationRate,
-                                     maxActivationPerturbation ) )
+                                     maxActivationPerturbation,
+                                     weightMutationRate,
+                                     maxWeightPerturbation,
+                                     newWeightChance
+                                   ) )
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..) )
 
@@ -33,7 +37,7 @@ import qualified AI.NEAT.Genome.Neuron as Neuron
 import AI.NEAT.Genome.Link ( LinkGene, linkGene )
 import qualified AI.NEAT.Genome.Link as Link
 
-import AI.NEAT.Utils.Graph ( modifyEdges, nmapM )
+import AI.NEAT.Utils.Graph ( modifyEdges, nmapM, emapM )
 
 
 ------------------------------------------------------------------------------
@@ -142,3 +146,26 @@ mutateActivationResponses g = Genome <$> nmapM doMutate (graph g)
           r            <- randomR (-perturbation, perturbation)
 
           return (ar + r)
+
+
+------------------------------------------------------------------------------
+-- | Mutates weights of the links.
+mutateWeights :: Genome         -- ^ Genome to perform mutations on.
+              -> NEAT Genome
+mutateWeights g = Genome <$> emapM doMutate (graph g)
+  where doMutate :: LinkGene -> NEAT LinkGene
+        doMutate l =
+          diceRoll weightMutationRate (return l) $
+                   diceRoll newWeightChance (mutateWeight l) (newWeight l)
+
+        newWeight :: LinkGene -> NEAT LinkGene
+        newWeight l = random >>= \w -> return $ l { Link.weight = w }
+
+        mutateWeight :: LinkGene -> NEAT LinkGene
+        mutateWeight l = do
+          perturbation <- asks maxWeightPerturbation
+          r            <- randomR (-perturbation, perturbation)
+
+          let weight = Link.weight l
+
+          return $ l { Link.weight = r + weight }

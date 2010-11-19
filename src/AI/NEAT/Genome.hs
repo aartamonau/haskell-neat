@@ -169,3 +169,8 @@ mutateWeights g = Genome <$> emapM doMutate (graph g)
           let weight = Link.weight l
 
           return $ l { Link.weight = r + weight }
+
+
+------------------------------------------------------------------------------
+-- TODO: mutateReenable?
+-- TODO: mutateToggleEnabled?

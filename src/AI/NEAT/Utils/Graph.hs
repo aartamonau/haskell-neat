@@ -96,7 +96,7 @@ sequenceGrE = ufold k (return empty)
           return $ zip ls ns
 
 ------------------------------------------------------------------------------
--- | Evalues monadic computations from both nodes' and edges' labels.
+-- | Evaluates monadic computations from both nodes' and edges' labels.
 sequenceGr :: (Monad m, DynGraph gr)
            => gr (m a) (m b)
            -> m (gr a b)

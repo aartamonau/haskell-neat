@@ -23,7 +23,6 @@ import AI.NEAT.Monad ( NEAT, getNeuronId )
 data NeuronGene =
   NeuronGene { id                 :: !NeuronId
              , tpy                :: !NeuronType
-             , recurrent          :: !Bool
              , activationResponse :: !Double
              }
 
@@ -33,11 +32,11 @@ instance Show NeuronGene where
 
 
 ------------------------------------------------------------------------------
--- TODO: innovations
+-- | Creates neuron gene of specified type.
 neuronGene :: NeuronType -> NEAT NeuronGene
 neuronGene tpy = do
   neuronId <- getNeuronId
-  return $ NeuronGene neuronId tpy False 1
+  return $ NeuronGene neuronId tpy 1
 
 
 ------------------------------------------------------------------------------

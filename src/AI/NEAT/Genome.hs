@@ -46,6 +46,7 @@ import AI.NEAT.Innovations.Neuron ( NeuronInnovation )
 import qualified AI.NEAT.Innovations.Neuron as NInnovation
 
 import AI.NEAT.Utils.Graph ( modifyEdges, nmapM, emapM )
+import AI.NEAT.Utils.Monad ( matching )
 
 
 ------------------------------------------------------------------------------
@@ -72,10 +73,8 @@ genome inputs outputs = do
 addNeuron :: Genome -> NEAT Genome
 addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
   where addNeuronLoop = do
-          link <- randomLink genome
-          if suitableLink link
-            then doAddNeuron link
-            else addNeuronLoop
+          link <- matching (randomLink genome) suitableLink
+          doAddNeuron link
 
         doAddNeuron (src, link, dst) = do
           -- TODO: eliminate those Neuron.id

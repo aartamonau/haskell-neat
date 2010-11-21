@@ -14,8 +14,7 @@ import AI.NEAT.Innovations ( InnovationId )
 
 ------------------------------------------------------------------------------
 data NeuronInnovation =
-  NeuronInnovation { id       :: InnovationId
-                   , neuronId :: NeuronId
-                   , from     :: NeuronId
-                   , to       :: NeuronId
+  NeuronInnovation { id   :: NeuronId
+                   , from :: NeuronId
+                   , to   :: NeuronId
                    }

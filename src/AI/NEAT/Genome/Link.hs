@@ -13,10 +13,13 @@ import Data.Graph.Inductive ( LEdge )
 
 ------------------------------------------------------------------------------
 import AI.NEAT.Common ( NeuronId )
-import AI.NEAT.Monad ( NEAT )
+import AI.NEAT.Monad ( NEAT, createLinkInnovation )
 
 import AI.NEAT.Genome.Neuron ( NeuronGene )
 import qualified AI.NEAT.Genome.Neuron as Neuron
+
+import AI.NEAT.Innovations.Link ( LinkInnovation )
+import qualified AI.NEAT.Innovations.Link as LInnovation
 
 
 ------------------------------------------------------------------------------
@@ -36,12 +39,21 @@ instance Show LinkGene where
 
 
 ------------------------------------------------------------------------------
--- TODO: innovations
+-- | Creates link gene and corresponding innovation.
 linkGene :: NeuronGene -> NeuronGene -> Double -> NEAT LinkGene
-linkGene from to weight = return $ LinkGene (Neuron.id from)
-                                            (Neuron.id to)
-                                             weight
-                                             True
+linkGene from to weight = do
+  let link = LinkGene (Neuron.id from) (Neuron.id to) weight True
+
+  _ <- createLinkInnovation (Neuron.id from, Neuron.id to)
+
+  return link
+
+
+------------------------------------------------------------------------------
+-- | Creates link gene based on the info stored in link innovation.
+linkGene_ :: LinkInnovation -> Double -> LinkGene
+linkGene_ inno weight =
+  LinkGene (LInnovation.from inno) (LInnovation.to inno) weight True
 
 
 ------------------------------------------------------------------------------

@@ -11,16 +11,20 @@ module AI.NEAT.Genome
 ------------------------------------------------------------------------------
 import Control.Applicative ( (<$>) )
 import Control.Arrow ( (>>>) )
+import Control.Exception ( assert )
 import Control.Monad ( replicateM )
 import Control.Monad.Reader ( asks )
 
 import Data.Graph.Inductive ( mkGraph, context, lab', inn', out',
-                              insNode, insEdges )
+                              insNode, insEdges, match )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
+
+import Data.Maybe ( isNothing, isJust, fromJust )
 
 
 import AI.NEAT.Monad ( NEAT,
-                       random, randomR, randomIntR, diceRoll, neuronsCount )
+                       random, randomR, randomIntR, diceRoll, neuronsCount,
+                       findNeuronInnovation, findLinkInnovation )
 import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
                                      activationMutationRate,
                                      maxActivationPerturbation,
@@ -31,11 +35,15 @@ import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..) )
 
-import AI.NEAT.Genome.Neuron ( NeuronGene (..), neuronGene )
+import AI.NEAT.Genome.Neuron ( NeuronGene (..),
+                               neuronGene, neuronGene_, neuronGeneHidden )
 import qualified AI.NEAT.Genome.Neuron as Neuron
 
-import AI.NEAT.Genome.Link ( LinkGene, linkGene )
+import AI.NEAT.Genome.Link ( LinkGene, linkGene, linkGene_ )
 import qualified AI.NEAT.Genome.Link as Link
+
+import AI.NEAT.Innovations.Neuron ( NeuronInnovation )
+import qualified AI.NEAT.Innovations.Neuron as NInnovation
 
 import AI.NEAT.Utils.Graph ( modifyEdges, nmapM, emapM )
 
@@ -52,7 +60,7 @@ genome inputs outputs = do
   bias  <- neuronGene Bias
   os    <- replicateM outputs (neuronGene Output)
 
-  links <- sequence $ [ linkGene x y =<< random | x <- bias : is, y <- os ]
+  links <- sequence [ linkGene x y =<< random | x <- bias : is, y <- os ]
 
   return $ Genome $ mkGraph [ Neuron.toLNode n | n <- is ++ [bias] ++ os ]
                             [ Link.toLEdge l   | l <- links ]
@@ -61,7 +69,6 @@ genome inputs outputs = do
 ------------------------------------------------------------------------------
     -- TODO: size threshold
     -- TODO: bias to old links
-    -- TODO: innovations
 addNeuron :: Genome -> NEAT Genome
 addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
   where addNeuronLoop = do
@@ -71,11 +78,32 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
             else addNeuronLoop
 
         doAddNeuron (src, link, dst) = do
-          neuron <- neuronGene Hidden
+          -- TODO: eliminate those Neuron.id
+          innovation <- findNeuronInnovation (Neuron.id src, Neuron.id dst)
+                                              notInGenome
 
-          link_a <- linkGene src neuron 1
-          link_b <- linkGene neuron dst (Link.weight link)
+          (link_a, link_b, neuron)
+            <- case innovation of
+                 Nothing -> do
+                   neuron <- neuronGeneHidden (Neuron.id src, Neuron.id dst)
+                   link_a <- linkGene src neuron 1
+                   link_b <- linkGene neuron dst lw
 
+                   return (link_a, link_b, neuron)
+                 Just inno -> do
+                   let neuron = neuronGene_ inno
+
+                   link_a_inno <- findLinkInnovation (Neuron.id src,
+                                                      Neuron.id neuron)
+                   link_b_inno <- findLinkInnovation (Neuron.id neuron,
+                                                      Neuron.id dst)
+
+                   let link_a = assert (isJust link_a_inno)
+                                       (linkGene_ (fromJust link_a_inno) 1)
+                   let link_b = assert (isJust link_b_inno)
+                                       (linkGene_ (fromJust link_b_inno) lw)
+
+                   return (link_a, link_a, neuron)
 
           return . Genome $
             (insNode     (Neuron.toLNode neuron)                    >>>
@@ -83,6 +111,11 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
              modifyEdges (Neuron.id src, Neuron.id dst)
                          (\l -> l { Link.isEnabled = False }))
             (graph genome)
+
+          where lw = Link.weight link
+
+        notInGenome inno =
+          isNothing . fst $ match (NInnovation.id inno) (graph genome)
 
         suitableLink (src, link, _) | not (Link.isEnabled link) = False
                                     | Link.isRecurrent link     = False

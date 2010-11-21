@@ -12,6 +12,7 @@ module AI.NEAT.Monad
 ------------------------------------------------------------------------------
 import Control.Applicative              ( Applicative, (<$>) )
 
+import Control.Monad                    ( join )
 import Control.Monad.Trans              ( MonadTrans, lift )
 
 import Control.Monad.Reader             ( MonadReader, asks )
@@ -24,11 +25,11 @@ import Control.Monad.Mersenne.Random    ( Rand (..), R (..), evalRandom )
 import qualified Control.Monad.Mersenne.Random as Random
 
 
-import Data.IntMap ( IntMap )
-import qualified Data.IntMap as IntMap
-
 import Data.Map ( Map )
 import qualified Data.Map as Map
+
+import Data.Sequence ( Seq, (><) )
+import qualified Data.Sequence as Seq
 
 import System.Random.Mersenne.Pure64    ( newPureMT )
 
@@ -38,23 +39,33 @@ import AI.NEAT.Common             ( NeuronId )
 
 import AI.NEAT.Innovations        ( InnovationId )
 import AI.NEAT.Innovations.Neuron ( NeuronInnovation ( NeuronInnovation ) )
-import AI.NEAT.Innovations.Link   ( LinkInnovation )
+import AI.NEAT.Innovations.Link   ( LinkInnovation ( LinkInnovation ) )
 
 import AI.NEAT.Config             ( NEATConfig, defaultNEATConfig )
+
+
+------------------------------------------------------------------------------
+-- | Type synonym for DB of neuron innovations.
+type NeuronInnovationDB = Map (NeuronId, NeuronId) (Seq NeuronInnovation)
+
+
+------------------------------------------------------------------------------
+-- | Type synonym for DB of link innovations.
+type LinkInnovationDB = Map (NeuronId, NeuronId) LinkInnovation
 
 
 ------------------------------------------------------------------------------
 data NEATState =
   NEATState { nextNeuronId      :: !NeuronId
             , nextInnovationId  :: !InnovationId
-            , neuronInnovations :: !(Map (NeuronId, NeuronId) NeuronInnovation)
-            , linkInnovations   :: !(IntMap LinkInnovation)
+            , neuronInnovations :: !NeuronInnovationDB
+            , linkInnovations   :: !LinkInnovationDB
             }
 
 
 ------------------------------------------------------------------------------
 emptyNEATState :: NEATState
-emptyNEATState = NEATState 0 0 Map.empty IntMap.empty
+emptyNEATState = NEATState 0 0 Map.empty Map.empty
 
 
 ------------------------------------------------------------------------------
@@ -139,10 +150,17 @@ diceRoll rate failure success = do
 
 
 ------------------------------------------------------------------------------
--- | Finds neuron innovations;
-findNeuronInnovation :: (NeuronId, NeuronId)
+-- | Finds first in historical order neuron innovation for some edge that
+-- matches provided predicate.
+findNeuronInnovation :: (NeuronId, NeuronId)       -- ^ Edge vertexes.
+                     -> (NeuronInnovation -> Bool) -- ^ Neuron predicate.
                      -> NEAT (Maybe NeuronInnovation)
-findNeuronInnovation edge = Map.lookup edge <$> gets neuronInnovations
+findNeuronInnovation edge p = do
+  seq <- Map.lookup edge <$> gets neuronInnovations
+  return $ join $ fmap find seq
+
+  where -- TODO: something better?
+        find seq = Seq.index seq <$> Seq.findIndexL p seq
 
 
 ------------------------------------------------------------------------------
@@ -151,11 +169,34 @@ createNeuronInnovation :: (NeuronId, NeuronId) -- ^ Edge that is split by new
                                                -- neuron.
                        -> NeuronId             -- ^ Id of new neuron.
                        -> NEAT NeuronInnovation
+-- TODO: data-accessor
 createNeuronInnovation edge@(src, dst) neuron = do
-  id <- getInnovationId
-  let innovation = NeuronInnovation id neuron src dst
+  db <- gets neuronInnovations
+  let updatedDb = Map.insertWith (><) edge (Seq.singleton innovation) db
 
-  newDb <- Map.insert edge innovation <$> gets neuronInnovations
-  modify (\s -> s { neuronInnovations = newDb })
+  modify (\s -> s { neuronInnovations = updatedDb })
+  return innovation
 
+  where innovation = NeuronInnovation neuron src dst
+
+
+------------------------------------------------------------------------------
+-- | Finds link innovation.
+findLinkInnovation :: (NeuronId, NeuronId)
+                   -> NEAT (Maybe LinkInnovation)
+findLinkInnovation edge = Map.lookup edge <$> gets linkInnovations
+
+
+------------------------------------------------------------------------------
+-- | Creates link innovation.
+createLinkInnovation :: (NeuronId, NeuronId) -- ^ Edge.
+                     -> NEAT LinkInnovation
+createLinkInnovation edge@(src, dst) = do
+  innoId <- getInnovationId
+  db     <- gets linkInnovations
+
+  let innovation = LinkInnovation innoId src dst
+  let updatedDb  = Map.insert edge innovation db
+
+  modify (\s -> s { linkInnovations = updatedDb })
   return innovation

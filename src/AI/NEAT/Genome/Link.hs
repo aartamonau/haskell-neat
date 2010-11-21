@@ -57,6 +57,7 @@ linkGene_ inno weight =
 
 
 ------------------------------------------------------------------------------
+-- TODO: this only works for looped links
 isRecurrent :: LinkGene -> Bool
 isRecurrent link = (from link) == (to link)
 

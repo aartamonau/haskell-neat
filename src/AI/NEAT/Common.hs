@@ -25,4 +25,4 @@ data NeuronType
   | Output
   | Bias
   | Hidden
-  deriving Show
+  deriving (Show, Eq)

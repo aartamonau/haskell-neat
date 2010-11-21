@@ -9,7 +9,7 @@ module AI.NEAT.Genome
 
 
 ------------------------------------------------------------------------------
-import Control.Applicative ( (<$>) )
+import Control.Applicative ( (<$>), (<*>) )
 import Control.Arrow ( (>>>) )
 import Control.Exception ( assert )
 import Control.Monad ( replicateM )
@@ -17,7 +17,8 @@ import Control.Monad.Reader ( asks )
 
 import Data.Graph.Inductive ( LNode, Context,
                               mkGraph, context, lab', inn', out',
-                              insNode, insEdges, match, noNodes, labNodes )
+                              insNode, insEdge, insEdges,
+                              match, noNodes, labNodes )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
 
 import Data.Maybe ( isNothing, isJust, fromJust )
@@ -31,7 +32,8 @@ import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
                                      maxActivationPerturbation,
                                      weightMutationRate,
                                      maxWeightPerturbation,
-                                     newWeightChance
+                                     newWeightChance,
+                                     loopedLinkTries
                                    ) )
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..) )
@@ -47,7 +49,7 @@ import AI.NEAT.Innovations.Neuron ( NeuronInnovation )
 import qualified AI.NEAT.Innovations.Neuron as NInnovation
 
 import AI.NEAT.Utils.Graph ( modifyEdges, nmapM, emapM )
-import AI.NEAT.Utils.Monad ( matching )
+import AI.NEAT.Utils.Monad ( matching, matchingTries )
 
 
 ------------------------------------------------------------------------------
@@ -121,6 +123,27 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
                                     | Link.isRecurrent link     = False
                                     | Bias <- Neuron.tpy src    = False
                                     | otherwise                 = True
+
+
+------------------------------------------------------------------------------
+-- | Tries to add loop link in some node.
+addLoopedLink :: Genome -> NEAT Genome
+addLoopedLink g = do
+  node <- matchingTries (randomGraphNode g) isSuitable =<< asks loopedLinkTries
+
+  case node of
+    Nothing -> return g
+    Just ((_, neuron), _) -> do
+      link <- linkGene neuron neuron =<< random
+
+      return $ Genome (insEdge (Link.toLEdge link) (graph g))
+
+  where looped ctx = any (Link.isRecurrent . label) (out' ctx)
+          where label (_, _, l) = l
+
+        isSuitable ((_, ng), ctx) = Neuron.tpy ng /= Bias &&
+                                    Neuron.tpy ng /= Input &&
+                                    not (looped ctx)
 
 
 ------------------------------------------------------------------------------

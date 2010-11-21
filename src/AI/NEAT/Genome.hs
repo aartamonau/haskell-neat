@@ -15,8 +15,9 @@ import Control.Exception ( assert )
 import Control.Monad ( replicateM )
 import Control.Monad.Reader ( asks )
 
-import Data.Graph.Inductive ( mkGraph, context, lab', inn', out',
-                              insNode, insEdges, match )
+import Data.Graph.Inductive ( LNode, Context,
+                              mkGraph, context, lab', inn', out',
+                              insNode, insEdges, match, noNodes, labNodes )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
 
 import Data.Maybe ( isNothing, isJust, fromJust )
@@ -123,12 +124,22 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
 
 
 ------------------------------------------------------------------------------
+-- | Helper function that returns random node from genome's graph.
+randomGraphNode :: Genome
+                -> NEAT (LNode NeuronGene, Context NeuronGene LinkGene)
+-- TODO: this is temporary O(n) version; this must work in O(1) time.
+randomGraphNode (Genome g) = do
+  n <- randomIntR (noNodes g)
+  let lnode@(node, _) = labNodes g !! n
+  let (ctx, _)        = match node g
+
+  return (lnode, fromJust ctx)
+
+
+------------------------------------------------------------------------------
+-- | Returns random neuron gene.
 randomNeuron :: Genome -> NEAT NeuronGene
-randomNeuron g = do
-  -- TODO: this will work only when the genome has all the neurons introduced
-  -- during evolution of all the genomes inside the thread of evolution
-  n <- randomIntR =<< neuronsCount
-  return $ getNeuron g n
+randomNeuron g = (snd . fst) <$> randomGraphNode g
 
 
 ------------------------------------------------------------------------------
@@ -139,9 +150,8 @@ getNeuron g n = lab' $ context (graph g) n
 ------------------------------------------------------------------------------
 randomLink :: Genome -> NEAT (NeuronGene, LinkGene, NeuronGene)
 randomLink g = do
-  n <- randomIntR =<< neuronsCount
+  (_, ctx) <- randomGraphNode g
 
-  let ctx        = context (graph g) n
   let links      = inn' ctx ++ out' ctx
   let linksCount = length links
 

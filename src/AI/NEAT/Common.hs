@@ -26,3 +26,11 @@ data NeuronType
   | Bias
   | Hidden
   deriving (Show, Eq)
+
+
+------------------------------------------------------------------------------
+-- | Determines whether neuron is sensor by its type.
+isSensor :: NeuronType -> Bool
+isSensor Bias  = True
+isSensor Input = True
+isSensor _     = False

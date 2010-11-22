@@ -36,7 +36,7 @@ import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
                                      loopedLinkTries
                                    ) )
 
-import AI.NEAT.Common ( NeuronId, NeuronType (..) )
+import AI.NEAT.Common ( NeuronId, NeuronType (..), isSensor )
 
 import AI.NEAT.Genome.Neuron ( NeuronGene (..),
                                neuronGene, neuronGene_, neuronGeneHidden )
@@ -141,8 +141,7 @@ addLoopedLink g = do
   where looped ctx = any (Link.isRecurrent . label) (out' ctx)
           where label (_, _, l) = l
 
-        isSuitable ((_, ng), ctx) = Neuron.tpy ng /= Bias &&
-                                    Neuron.tpy ng /= Input &&
+        isSuitable ((_, ng), ctx) = not (isSensor $ Neuron.tpy ng) &&
                                     not (looped ctx)
 
 

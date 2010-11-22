@@ -12,11 +12,11 @@ module AI.NEAT.Genome
 import Control.Applicative ( (<$>), (<*>) )
 import Control.Arrow ( (>>>) )
 import Control.Exception ( assert )
-import Control.Monad ( replicateM )
+import Control.Monad ( replicateM, join )
 import Control.Monad.Reader ( asks )
 
 import Data.Graph.Inductive ( LNode, Context,
-                              mkGraph, context, lab', inn', out',
+                              mkGraph, context, lab', inn', out', pre',
                               insNode, insEdge, insEdges,
                               match, noNodes, labNodes )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
@@ -33,7 +33,8 @@ import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
                                      weightMutationRate,
                                      maxWeightPerturbation,
                                      newWeightChance,
-                                     loopedLinkTries
+                                     loopedLinkTries,
+                                     linkTries
                                    ) )
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..), isSensor )
@@ -138,6 +139,7 @@ addLoopedLink g = do
   case node of
     Nothing -> return g
     Just ((_, neuron), _) -> do
+      -- TODO: check whether innovation already exists
       link <- linkGene neuron neuron =<< random
 
       return $ Genome (insEdge (Link.toLEdge link) (graph g))
@@ -147,6 +149,36 @@ addLoopedLink g = do
 
         isSuitable ((_, ng), ctx) = not (isSensor $ Neuron.tpy ng) &&
                                     not (looped ctx)
+
+
+------------------------------------------------------------------------------
+-- | Tries to add link to genome.
+addLink :: Genome -> NEAT Genome
+addLink g = do
+  -- TODO: ugly?
+  edge <- join <$> (matchingTries findCandidate isJust =<< asks linkTries)
+
+  case edge of
+    Nothing -> return g
+    Just (src, dst) -> do
+      -- TODO: check whether innovation already exists
+      link <- linkGene src dst =<< random
+
+      return $ Genome (insEdge (Link.toLEdge link) (graph g))
+
+  where findCandidate :: NEAT (Maybe (NeuronGene, NeuronGene))
+        findCandidate = do
+          src             <- randomNeuron g
+          ((_, dst), ctx) <- randomGraphNode g
+
+          let duplicate = any (== (Neuron.id src)) (pre' ctx)
+
+          if isSensor (Neuron.tpy dst) ||
+             duplicate                 ||
+             (Neuron.id src == Neuron.id dst)
+
+            then return Nothing
+            else return $ Just (src, dst)
 
 
 ------------------------------------------------------------------------------

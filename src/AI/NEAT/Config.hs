@@ -22,6 +22,8 @@ data NEATConfig =
 
              , loopedLinkRate            :: Double
              , loopedLinkTries           :: Int
+
+             , linkTries                 :: Int
              }
 
 
@@ -39,4 +41,6 @@ defaultNEATConfig =
 
              , loopedLinkRate            = 0.1
              , loopedLinkTries           = 5
+
+             , linkTries                 = 5
              }

@@ -19,6 +19,9 @@ data NEATConfig =
 
              , activationMutationRate    :: Double
              , maxActivationPerturbation :: Double
+
+             , loopedLinkRate            :: Double
+             , loopedLinkTries           :: Int
              }
 
 
@@ -33,4 +36,7 @@ defaultNEATConfig =
 
              , activationMutationRate    = 0.1
              , maxActivationPerturbation = 0.1
+
+             , loopedLinkRate            = 0.1
+             , loopedLinkTries           = 5
              }

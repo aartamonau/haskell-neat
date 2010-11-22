@@ -1,4 +1,5 @@
 ------------------------------------------------------------------------------
+{-# LANGUAGE ViewPatterns #-}
 
 
 ------------------------------------------------------------------------------
@@ -26,7 +27,8 @@ import AI.NEAT.Common        ( NeuronType (..) )
 
 import AI.NEAT.Genome        ( Genome (..) )
 
-import AI.NEAT.Genome.Neuron ( NeuronGene ( NeuronGene ) )
+import AI.NEAT.Genome.Neuron ( NeuronGene )
+import qualified AI.NEAT.Genome.Neuron as Neuron
 
 import AI.NEAT.Genome.Link   ( LinkGene ( LinkGene ) )
 import qualified AI.NEAT.Genome.Link as Link
@@ -41,10 +43,10 @@ data Cluster = None
 
 ------------------------------------------------------------------------------
 clusterize :: NeuronGene -> Cluster
-clusterize (NeuronGene _ Input  _ _) = Inputs
-clusterize (NeuronGene _ Bias   _ _) = Inputs
-clusterize (NeuronGene _ Output _ _) = Outputs
-clusterize (NeuronGene _ Hidden _ _) = None
+clusterize (Neuron.tpy -> Input)  = Inputs
+clusterize (Neuron.tpy -> Bias)   = Inputs
+clusterize (Neuron.tpy -> Output) = Outputs
+clusterize (Neuron.tpy -> Hidden) = None
 
 
 ------------------------------------------------------------------------------
@@ -90,10 +92,10 @@ hiddenAttrs = []
 
 ------------------------------------------------------------------------------
 neuronGeneAttrs :: NeuronGene -> Attributes
-neuronGeneAttrs (NeuronGene _ Input  _ _) = inputAttrs
-neuronGeneAttrs (NeuronGene _ Output _ _) = outputAttrs
-neuronGeneAttrs (NeuronGene _ Bias   _ _) = biasAttrs
-neuronGeneAttrs (NeuronGene _ Hidden _ _) = hiddenAttrs
+neuronGeneAttrs (Neuron.tpy -> Input)  = inputAttrs
+neuronGeneAttrs (Neuron.tpy -> Output) = outputAttrs
+neuronGeneAttrs (Neuron.tpy -> Bias)   = biasAttrs
+neuronGeneAttrs (Neuron.tpy -> Hidden) = hiddenAttrs
 
 
 ------------------------------------------------------------------------------

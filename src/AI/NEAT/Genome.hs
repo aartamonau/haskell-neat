@@ -9,35 +9,47 @@ module AI.NEAT.Genome
 
 
 ------------------------------------------------------------------------------
-import Control.Applicative ( (<$>) )
+import Control.Applicative ( (<$>), (<*>) )
 import Control.Arrow ( (>>>) )
+import Control.Exception ( assert )
 import Control.Monad ( replicateM )
 import Control.Monad.Reader ( asks )
 
-import Data.Graph.Inductive ( mkGraph, context, lab', inn', out',
-                              insNode, insEdges )
+import Data.Graph.Inductive ( LNode, Context,
+                              mkGraph, context, lab', inn', out',
+                              insNode, insEdge, insEdges,
+                              match, noNodes, labNodes )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
+
+import Data.Maybe ( isNothing, isJust, fromJust )
 
 
 import AI.NEAT.Monad ( NEAT,
-                       random, randomR, randomIntR, diceRoll, neuronsCount )
+                       random, randomR, randomIntR, diceRoll, neuronsCount,
+                       findNeuronInnovation, findLinkInnovation )
 import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
                                      activationMutationRate,
                                      maxActivationPerturbation,
                                      weightMutationRate,
                                      maxWeightPerturbation,
-                                     newWeightChance
+                                     newWeightChance,
+                                     loopedLinkTries
                                    ) )
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..) )
 
-import AI.NEAT.Genome.Neuron ( NeuronGene (..), neuronGene )
+import AI.NEAT.Genome.Neuron ( NeuronGene (..),
+                               neuronGene, neuronGene_, neuronGeneHidden )
 import qualified AI.NEAT.Genome.Neuron as Neuron
 
-import AI.NEAT.Genome.Link ( LinkGene, linkGene )
+import AI.NEAT.Genome.Link ( LinkGene, linkGene, linkGene_ )
 import qualified AI.NEAT.Genome.Link as Link
 
+import AI.NEAT.Innovations.Neuron ( NeuronInnovation )
+import qualified AI.NEAT.Innovations.Neuron as NInnovation
+
 import AI.NEAT.Utils.Graph ( modifyEdges, nmapM, emapM )
+import AI.NEAT.Utils.Monad ( matching, matchingTries )
 
 
 ------------------------------------------------------------------------------
@@ -52,7 +64,7 @@ genome inputs outputs = do
   bias  <- neuronGene Bias
   os    <- replicateM outputs (neuronGene Output)
 
-  links <- sequence $ [ linkGene x y =<< random | x <- bias : is, y <- os ]
+  links <- sequence [ linkGene x y =<< random | x <- bias : is, y <- os ]
 
   return $ Genome $ mkGraph [ Neuron.toLNode n | n <- is ++ [bias] ++ os ]
                             [ Link.toLEdge l   | l <- links ]
@@ -61,21 +73,39 @@ genome inputs outputs = do
 ------------------------------------------------------------------------------
     -- TODO: size threshold
     -- TODO: bias to old links
-    -- TODO: innovations
 addNeuron :: Genome -> NEAT Genome
 addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
   where addNeuronLoop = do
-          link <- randomLink genome
-          if suitableLink link
-            then doAddNeuron link
-            else addNeuronLoop
+          link <- matching (randomLink genome) suitableLink
+          doAddNeuron link
 
         doAddNeuron (src, link, dst) = do
-          neuron <- neuronGene Hidden
+          -- TODO: eliminate those Neuron.id
+          innovation <- findNeuronInnovation (Neuron.id src, Neuron.id dst)
+                                              notInGenome
 
-          link_a <- linkGene src neuron 1
-          link_b <- linkGene neuron dst (Link.weight link)
+          (link_a, link_b, neuron)
+            <- case innovation of
+                 Nothing -> do
+                   neuron <- neuronGeneHidden (Neuron.id src, Neuron.id dst)
+                   link_a <- linkGene src neuron 1
+                   link_b <- linkGene neuron dst lw
 
+                   return (link_a, link_b, neuron)
+                 Just inno -> do
+                   let neuron = neuronGene_ inno
+
+                   link_a_inno <- findLinkInnovation (Neuron.id src,
+                                                      Neuron.id neuron)
+                   link_b_inno <- findLinkInnovation (Neuron.id neuron,
+                                                      Neuron.id dst)
+
+                   let link_a = assert (isJust link_a_inno)
+                                       (linkGene_ (fromJust link_a_inno) 1)
+                   let link_b = assert (isJust link_b_inno)
+                                       (linkGene_ (fromJust link_b_inno) lw)
+
+                   return (link_a, link_a, neuron)
 
           return . Genome $
             (insNode     (Neuron.toLNode neuron)                    >>>
@@ -84,6 +114,11 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
                          (\l -> l { Link.isEnabled = False }))
             (graph genome)
 
+          where lw = Link.weight link
+
+        notInGenome inno =
+          isNothing . fst $ match (NInnovation.id inno) (graph genome)
+
         suitableLink (src, link, _) | not (Link.isEnabled link) = False
                                     | Link.isRecurrent link     = False
                                     | Bias <- Neuron.tpy src    = False
@@ -91,12 +126,43 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
 
 
 ------------------------------------------------------------------------------
+-- | Tries to add loop link in some node.
+addLoopedLink :: Genome -> NEAT Genome
+addLoopedLink g = do
+  node <- matchingTries (randomGraphNode g) isSuitable =<< asks loopedLinkTries
+
+  case node of
+    Nothing -> return g
+    Just ((_, neuron), _) -> do
+      link <- linkGene neuron neuron =<< random
+
+      return $ Genome (insEdge (Link.toLEdge link) (graph g))
+
+  where looped ctx = any (Link.isRecurrent . label) (out' ctx)
+          where label (_, _, l) = l
+
+        isSuitable ((_, ng), ctx) = Neuron.tpy ng /= Bias &&
+                                    Neuron.tpy ng /= Input &&
+                                    not (looped ctx)
+
+
+------------------------------------------------------------------------------
+-- | Helper function that returns random node from genome's graph.
+randomGraphNode :: Genome
+                -> NEAT (LNode NeuronGene, Context NeuronGene LinkGene)
+-- TODO: this is temporary O(n) version; this must work in O(1) time.
+randomGraphNode (Genome g) = do
+  n <- randomIntR (noNodes g)
+  let lnode@(node, _) = labNodes g !! n
+  let (ctx, _)        = match node g
+
+  return (lnode, fromJust ctx)
+
+
+------------------------------------------------------------------------------
+-- | Returns random neuron gene.
 randomNeuron :: Genome -> NEAT NeuronGene
-randomNeuron g = do
-  -- TODO: this will work only when the genome has all the neurons introduced
-  -- during evolution of all the genomes inside the thread of evolution
-  n <- randomIntR =<< neuronsCount
-  return $ getNeuron g n
+randomNeuron g = (snd . fst) <$> randomGraphNode g
 
 
 ------------------------------------------------------------------------------
@@ -107,9 +173,8 @@ getNeuron g n = lab' $ context (graph g) n
 ------------------------------------------------------------------------------
 randomLink :: Genome -> NEAT (NeuronGene, LinkGene, NeuronGene)
 randomLink g = do
-  n <- randomIntR =<< neuronsCount
+  (_, ctx) <- randomGraphNode g
 
-  let ctx        = context (graph g) n
   let links      = inn' ctx ++ out' ctx
   let linksCount = length links
 

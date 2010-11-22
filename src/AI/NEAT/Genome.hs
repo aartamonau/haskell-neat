@@ -119,10 +119,14 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
         notInGenome inno =
           isNothing . fst $ match (NInnovation.id inno) (graph genome)
 
-        suitableLink (src, link, _) | not (Link.isEnabled link) = False
-                                    | Link.isRecurrent link     = False
-                                    | Bias <- Neuron.tpy src    = False
-                                    | otherwise                 = True
+        suitableLink (src, link, _)
+            | not (Link.isEnabled link) = False
+
+            -- TODO: originally isRecurrent was used here instead; whether it
+            -- really bad to split recurrent link?
+            | Link.isLooped link        = False
+            | Bias <- Neuron.tpy src    = False
+            | otherwise                 = True
 
 
 ------------------------------------------------------------------------------
@@ -138,7 +142,7 @@ addLoopedLink g = do
 
       return $ Genome (insEdge (Link.toLEdge link) (graph g))
 
-  where looped ctx = any (Link.isRecurrent . label) (out' ctx)
+  where looped ctx = any (Link.isLooped . label) (out' ctx)
           where label (_, _, l) = l
 
         isSuitable ((_, ng), ctx) = not (isSensor $ Neuron.tpy ng) &&

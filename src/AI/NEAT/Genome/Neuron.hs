@@ -30,10 +30,7 @@ data NeuronGene =
              , tpy                :: !NeuronType
              , activationResponse :: !Double
              }
-
-
-instance Show NeuronGene where
-  show = show . AI.NEAT.Genome.Neuron.id
+  deriving Show
 
 
 ------------------------------------------------------------------------------

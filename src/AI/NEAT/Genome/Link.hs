@@ -32,11 +32,7 @@ data LinkGene =
            , weight    :: !Double
            , isEnabled :: !Bool
            }
-
-
-instance Show LinkGene where
-  show = show . weight
-
+  deriving Show
 
 ------------------------------------------------------------------------------
 -- | Creates link gene and corresponding innovation.

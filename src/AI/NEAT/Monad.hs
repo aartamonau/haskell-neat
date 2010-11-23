@@ -200,3 +200,16 @@ createLinkInnovation edge@(src, dst) = do
 
   modify (\s -> s { linkInnovations = updatedDb })
   return innovation
+
+
+------------------------------------------------------------------------------
+-- | Checks whether certain link innovation exists. If it does not then new
+-- one is created.
+findOrCreateLinkInnovation :: (NeuronId, NeuronId)
+                           -> NEAT LinkInnovation
+findOrCreateLinkInnovation edge = do
+  mInnovation <- findLinkInnovation edge
+
+  case mInnovation of
+    Nothing         -> createLinkInnovation edge
+    Just innovation -> return innovation

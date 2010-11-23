@@ -13,7 +13,7 @@ import Data.Graph.Inductive ( LEdge )
 
 ------------------------------------------------------------------------------
 import AI.NEAT.Common ( NeuronId )
-import AI.NEAT.Monad ( NEAT, createLinkInnovation )
+import AI.NEAT.Monad ( NEAT, findOrCreateLinkInnovation )
 
 import AI.NEAT.Genome.Neuron ( NeuronGene )
 import qualified AI.NEAT.Genome.Neuron as Neuron
@@ -44,7 +44,7 @@ linkGene :: NeuronGene -> NeuronGene -> Double -> NEAT LinkGene
 linkGene from to weight = do
   let link = LinkGene (Neuron.id from) (Neuron.id to) weight True
 
-  _ <- createLinkInnovation (Neuron.id from, Neuron.id to)
+  _ <- findOrCreateLinkInnovation (Neuron.id from, Neuron.id to)
 
   return link
 

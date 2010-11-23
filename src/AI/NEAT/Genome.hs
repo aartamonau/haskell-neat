@@ -10,22 +10,24 @@ module AI.NEAT.Genome
 
 ------------------------------------------------------------------------------
 import Control.Applicative ( (<$>), (<*>) )
-import Control.Arrow ( (>>>) )
+import Control.Arrow ( (>>>), (&&&) )
 import Control.Exception ( assert )
 import Control.Monad ( replicateM, join )
 import Control.Monad.Reader ( asks )
 
+import Data.Function ( on )
 import Data.Graph.Inductive ( LNode, Context,
+                              empty,
                               mkGraph, context, lab', inn', out', pre',
-                              insNode, insEdge, insEdges,
-                              match, noNodes, labNodes )
+                              insNode, insNodes, insEdge, insEdges,
+                              match, noNodes, labNodes, labEdges )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
-
+import Data.List ( sortBy, nubBy )
 import Data.Maybe ( isNothing, isJust, fromJust )
 
 
 import AI.NEAT.Monad ( NEAT,
-                       random, randomR, randomIntR, diceRoll, neuronsCount,
+                       random, randomR, randomIntR, randomChoice, diceRoll,
                        findNeuronInnovation, findLinkInnovation )
 import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
                                      activationMutationRate,
@@ -39,15 +41,18 @@ import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..), isSensor )
 
-import AI.NEAT.Genome.Neuron ( NeuronGene (..),
+import AI.NEAT.Genome.Neuron ( NeuronGene ( NeuronGene ),
                                neuronGene, neuronGene_, neuronGeneHidden )
 import qualified AI.NEAT.Genome.Neuron as Neuron
 
 import AI.NEAT.Genome.Link ( LinkGene, linkGene, linkGene_ )
 import qualified AI.NEAT.Genome.Link as Link
 
+import AI.NEAT.Innovations ( InnovationId )
 import AI.NEAT.Innovations.Neuron ( NeuronInnovation )
 import qualified AI.NEAT.Innovations.Neuron as NInnovation
+import AI.NEAT.Innovations.Link ( LinkInnovation )
+import qualified AI.NEAT.Innovations.Link as LInnovation
 
 import AI.NEAT.Utils.Graph ( modifyEdges, nmapM, emapM )
 import AI.NEAT.Utils.Monad ( matching, matchingTries )
@@ -274,3 +279,76 @@ mutateWeights g = Genome <$> emapM doMutate (graph g)
 ------------------------------------------------------------------------------
 -- TODO: mutateReenable?
 -- TODO: mutateToggleEnabled?
+
+
+------------------------------------------------------------------------------
+-- TODO: common
+type Fitness = Double
+
+
+crossover :: (Genome, Fitness)
+          -> (Genome, Fitness)
+          -> NEAT Genome
+crossover gx gy = do
+  winnerGenes    <- linkGenes winner
+  loserGenes     <- linkGenes loser
+  taggedGenes    <- doCrossover winnerGenes loserGenes
+
+  let offspringGenes = map uneither taggedGenes
+
+  -- TODO: use Data.Set here
+  let offspringNeurons =
+        nubBy ((==) `on` Neuron.id) $ concatMap extractNeurons taggedGenes
+
+  return . Genome $
+    (insNodes (map Neuron.toLNode offspringNeurons) >>>
+     insEdges (map Link.toLEdge offspringGenes)) empty
+
+  where swap (x, fx) (y, fy) | fx >= fy  = (x, y)
+                             | otherwise = (y, x)
+
+        (winner, loser) = swap gx gy
+
+        -- winner first
+        doCrossover [] _  = return []
+        doCrossover ws [] = return (map (Left . snd) ws)
+        doCrossover ws@((wid, w) : ws') ls@((lid, l) : ls')
+          | wid < lid = (Left w:) <$> doCrossover ws' ls
+          | wid > lid = doCrossover ws ls'
+          | otherwise = do
+            h <- randomChoice (Left w) (Right l)
+            (h:) <$> doCrossover ws' ls'
+
+        uneither (Left x)  = x
+        uneither (Right x) = x
+
+        extractNeurons (Left l)  = neurons winner l
+        extractNeurons (Right l) = neurons loser l
+
+        neurons genome link = [getNeuron genome (Link.from link),
+                               getNeuron genome (Link.to link)]
+
+-- | Temporary function to test crossover.
+crossover_ :: Genome -> Genome -> NEAT Genome
+crossover_ x y = crossover (x, 1) (y, 0)
+
+
+------------------------------------------------------------------------------
+-- | Returns a list o link genes of genome accompanied by the innovation id in
+-- which that link has been introduced. The list is sorted by innovation id.
+
+-- TODO: innovation id can really be stored in link gene for performance
+linkGenes :: Genome
+          -> NEAT [(InnovationId, LinkGene)]
+linkGenes (Genome g) = do
+  sortBy (compare `on` fst) <$> (mapM (attachInnovation . label) $ labEdges g)
+  where getInnovation link = do
+          innovation <- findLinkInnovation (Link.from link, Link.to link)
+          return $ assert (isJust innovation)
+                          (LInnovation.id $ fromJust innovation)
+
+        attachInnovation link = do
+          innovation <- getInnovation link
+          return (innovation, link)
+
+        label (_, _, l) = l

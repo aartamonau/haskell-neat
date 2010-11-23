@@ -139,6 +139,15 @@ randomIntR r = fmap (`mod` r) randomInt
 
 
 ------------------------------------------------------------------------------
+-- | Randomly selects one of two objects.
+randomChoice :: a -> a -> NEAT a
+randomChoice x y = do
+  r <- randomR (0, 1)
+  if r <= 0.5
+    then return x
+    else return y
+
+------------------------------------------------------------------------------
 diceRoll :: (NEATConfig -> Double) -> NEAT a -> NEAT a -> NEAT a
 diceRoll rate failure success = do
   rateValue <- asks rate

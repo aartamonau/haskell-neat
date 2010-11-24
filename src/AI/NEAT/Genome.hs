@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ViewPatterns #-}
 
 
 ------------------------------------------------------------------------------
@@ -75,6 +75,60 @@ genome inputs outputs = do
 
 
 ------------------------------------------------------------------------------
+-- | Lifts graph transformation into a genome.
+liftGraphTransform :: (Gr NeuronGene LinkGene -> Gr NeuronGene LinkGene)
+                   -> Genome
+                   -> Genome
+liftGraphTransform f genome = genome { graph = f (graph genome) }
+
+
+------------------------------------------------------------------------------
+-- | Lifts monadic graph transform into a genome.
+liftGraphTransformM :: Monad m
+                    => (Gr NeuronGene LinkGene -> m (Gr NeuronGene LinkGene))
+                    -> Genome
+                    -> m (Genome)
+liftGraphTransformM f genome = do
+  g <- f (graph genome)
+  return $ genome { graph = g }
+
+
+------------------------------------------------------------------------------
+-- | Inserts neuron in the graph of genome.
+insertNeuron :: NeuronGene -> Genome -> Genome
+insertNeuron n = insertNeurons [n]
+
+
+------------------------------------------------------------------------------
+-- | Inserts series of neurons into the genome's graph.
+insertNeurons :: [NeuronGene] -> Genome -> Genome
+insertNeurons = liftGraphTransform . insNodes . map Neuron.toLNode
+
+
+------------------------------------------------------------------------------
+-- | Inserts a link into a genome's graph.
+insertLink :: LinkGene -> Genome -> Genome
+insertLink l = insertLinks [l]
+
+
+------------------------------------------------------------------------------
+-- | Inserts a series of links into a genome's graph.
+insertLinks :: [LinkGene] -> Genome -> Genome
+insertLinks = liftGraphTransform . insEdges . map Link.toLEdge
+
+
+------------------------------------------------------------------------------
+-- | 'modifyEdges' lifted into a genome. Singular since we expect only one
+-- link between every two neurons.
+modifyLink :: (NeuronGene, NeuronGene)
+            -> (LinkGene -> LinkGene)
+            -> Genome
+            -> Genome
+modifyLink (src, dst) = liftGraphTransform . modifyEdges edge
+  where edge = (Neuron.id src, Neuron.id dst)
+
+
+------------------------------------------------------------------------------
     -- TODO: size threshold
     -- TODO: bias to old links
 addNeuron :: Genome -> NEAT Genome
@@ -111,12 +165,9 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
 
                    return (link_a, link_b, neuron)
 
-          return . Genome $
-            (insNode     (Neuron.toLNode neuron)                    >>>
-             insEdges    [Link.toLEdge link_a, Link.toLEdge link_b] >>>
-             modifyEdges (Neuron.id src, Neuron.id dst)
-                         (\l -> l { Link.isEnabled = False }))
-            (graph genome)
+          return $ insertNeuron neuron               >>>
+                   insertLinks [link_a, link_b]      >>>
+                   modifyLink (src, dst) disableLink $ genome
 
           where lw = Link.weight link
 
@@ -129,8 +180,10 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
             -- TODO: originally isRecurrent was used here instead; whether it
             -- really bad to split recurrent link?
             | Link.isLooped link        = False
-            | Bias <- Neuron.tpy src    = False
+            | Bias == Neuron.tpy src    = False
             | otherwise                 = True
+
+        disableLink l = l { Link.isEnabled = False }
 
 
 ------------------------------------------------------------------------------
@@ -145,7 +198,7 @@ addLoopedLink g = do
       -- TODO: check whether innovation already exists
       link <- linkGene neuron neuron =<< random
 
-      return $ Genome (insEdge (Link.toLEdge link) (graph g))
+      return $ insertLink link g
 
   where looped ctx = any (Link.isLooped . label) (out' ctx)
           where label (_, _, l) = l
@@ -167,7 +220,7 @@ addLink g = do
       -- TODO: check whether innovation already exists
       link <- linkGene src dst =<< random
 
-      return $ Genome (insEdge (Link.toLEdge link) (graph g))
+      return $ insertLink link g
 
   where findCandidate :: NEAT (Maybe (NeuronGene, NeuronGene))
         findCandidate = do
@@ -235,7 +288,7 @@ randomLink g = do
 -- | Mutates activation responses of neurons.
 mutateActivationResponses :: Genome -- ^ Genome to perform mutations on.
                           -> NEAT Genome
-mutateActivationResponses g = Genome <$> nmapM doMutate (graph g)
+mutateActivationResponses = liftGraphTransformM $ nmapM doMutate
   where doMutate :: NeuronGene -> NEAT NeuronGene
         doMutate n =
           diceRoll activationMutationRate (return n) $ do
@@ -255,7 +308,7 @@ mutateActivationResponses g = Genome <$> nmapM doMutate (graph g)
 -- | Mutates weights of the links.
 mutateWeights :: Genome         -- ^ Genome to perform mutations on.
               -> NEAT Genome
-mutateWeights g = Genome <$> emapM doMutate (graph g)
+mutateWeights = liftGraphTransformM $ emapM doMutate
   where doMutate :: LinkGene -> NEAT LinkGene
         doMutate l =
           diceRoll weightMutationRate (return l) $
@@ -298,14 +351,15 @@ crossover gx gy = do
   let offspringNeurons =
         nubBy ((==) `on` Neuron.id) $ concatMap extractNeurons taggedGenes
 
-  return . Genome $
-    (insNodes (map Neuron.toLNode offspringNeurons) >>>
-     insEdges (map Link.toLEdge offspringGenes)) empty
+  return $ insertNeurons offspringNeurons >>>
+           insertLinks   offspringGenes   $ emptyGenome
 
   where swap (x, fx) (y, fy) | fx >= fy  = (x, y)
                              | otherwise = (y, x)
 
         (winner, loser) = swap gx gy
+
+        emptyGenome = Genome empty
 
         -- winner first
         doCrossover [] _  = return []
@@ -338,7 +392,7 @@ crossover_ x y = crossover (x, 1) (y, 0)
 -- TODO: innovation id can really be stored in link gene for performance
 linkGenes :: Genome
           -> NEAT [(InnovationId, LinkGene)]
-linkGenes (Genome g) = do
+linkGenes (graph -> g) = do
   sortBy (compare `on` fst) <$> (mapM (attachInnovation . label) $ labEdges g)
   where getInnovation link = do
           innovation <- findLinkInnovation (Link.from link, Link.to link)

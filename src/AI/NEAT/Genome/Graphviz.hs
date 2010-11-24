@@ -15,7 +15,7 @@ import Data.GraphViz ( GlobalAttributes (..), Attributes, Attribute (..),
                        GraphvizParams (..), DotGraph,
                        GraphvizCanvas ( Xlib ), Color (..), X11Color (..),
                        StyleItem (..), StyleName (..),
-                       LNodeCluster, NodeCluster (..), Label ( StrLabel ),
+                       NodeCluster (..), Label ( StrLabel ),
                        graphToDot, defaultParams,
                        runGraphvizCanvas' )
 
@@ -30,7 +30,7 @@ import AI.NEAT.Genome        ( Genome (..) )
 import AI.NEAT.Genome.Neuron ( NeuronGene )
 import qualified AI.NEAT.Genome.Neuron as Neuron
 
-import AI.NEAT.Genome.Link   ( LinkGene ( LinkGene ) )
+import AI.NEAT.Genome.Link   ( LinkGene )
 import qualified AI.NEAT.Genome.Link as Link
 
 

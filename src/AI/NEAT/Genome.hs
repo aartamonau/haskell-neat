@@ -9,8 +9,8 @@ module AI.NEAT.Genome
 
 
 ------------------------------------------------------------------------------
-import Control.Applicative ( (<$>), (<*>) )
-import Control.Arrow ( (>>>), (&&&) )
+import Control.Applicative ( (<$>) )
+import Control.Arrow ( (>>>) )
 import Control.Exception ( assert )
 import Control.Monad ( replicateM, join )
 import Control.Monad.Reader ( asks )
@@ -41,7 +41,7 @@ import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..), isSensor )
 
-import AI.NEAT.Genome.Neuron ( NeuronGene ( NeuronGene ),
+import AI.NEAT.Genome.Neuron ( NeuronGene,
                                neuronGene, neuronGene_, neuronGeneHidden )
 import qualified AI.NEAT.Genome.Neuron as Neuron
 
@@ -51,7 +51,6 @@ import qualified AI.NEAT.Genome.Link as Link
 import AI.NEAT.Innovations ( InnovationId )
 import AI.NEAT.Innovations.Neuron ( NeuronInnovation )
 import qualified AI.NEAT.Innovations.Neuron as NInnovation
-import AI.NEAT.Innovations.Link ( LinkInnovation )
 import qualified AI.NEAT.Innovations.Link as LInnovation
 
 import AI.NEAT.Utils.Graph ( modifyEdges, nmapM, emapM )

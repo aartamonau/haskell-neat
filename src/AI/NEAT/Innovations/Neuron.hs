@@ -9,7 +9,6 @@ module AI.NEAT.Innovations.Neuron
 
 ------------------------------------------------------------------------------
 import AI.NEAT.Common      ( NeuronId )
-import AI.NEAT.Innovations ( InnovationId )
 
 
 ------------------------------------------------------------------------------

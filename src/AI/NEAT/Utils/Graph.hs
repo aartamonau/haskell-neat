@@ -37,7 +37,7 @@ module AI.NEAT.Utils.Graph
 
 ------------------------------------------------------------------------------
 import Data.Graph.Inductive ( DynGraph, Node, (&),
-                              match, out', nmap, emap, ufold, empty )
+                              match, nmap, emap, ufold, empty )
 
 
 ------------------------------------------------------------------------------

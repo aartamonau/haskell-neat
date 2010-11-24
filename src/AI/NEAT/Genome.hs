@@ -58,7 +58,9 @@ import AI.NEAT.Utils.Monad ( matching, matchingTries )
 
 ------------------------------------------------------------------------------
 data Genome =
-  Genome { graph :: Gr NeuronGene LinkGene }
+  Genome { inputs  :: !Int
+         , outputs :: !Int
+         , graph   :: !(Gr NeuronGene LinkGene) }
 
 
 ------------------------------------------------------------------------------
@@ -70,8 +72,10 @@ genome inputs outputs = do
 
   links <- sequence [ linkGene x y =<< random | x <- bias : is, y <- os ]
 
-  return $ Genome $ mkGraph [ Neuron.toLNode n | n <- is ++ [bias] ++ os ]
-                            [ Link.toLEdge l   | l <- links ]
+  let graph = mkGraph [ Neuron.toLNode n | n <- is ++ [bias] ++ os ]
+                      [ Link.toLEdge l   | l <- links ]
+
+  return $ Genome inputs outputs graph
 
 
 ------------------------------------------------------------------------------
@@ -242,7 +246,7 @@ addLink g = do
 randomGraphNode :: Genome
                 -> NEAT (LNode NeuronGene, Context NeuronGene LinkGene)
 -- TODO: this is temporary O(n) version; this must work in O(1) time.
-randomGraphNode (Genome g) = do
+randomGraphNode (graph -> g) = do
   n <- randomIntR (noNodes g)
   let lnode@(node, _) = labNodes g !! n
   let (ctx, _)        = match node g
@@ -359,7 +363,7 @@ crossover gx gy = do
 
         (winner, loser) = swap gx gy
 
-        emptyGenome = Genome empty
+        emptyGenome = Genome (inputs winner) (outputs winner) empty
 
         -- winner first
         doCrossover [] _  = return []

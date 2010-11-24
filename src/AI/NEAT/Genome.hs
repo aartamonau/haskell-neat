@@ -49,7 +49,6 @@ import AI.NEAT.Genome.Link ( LinkGene, linkGene, linkGene_ )
 import qualified AI.NEAT.Genome.Link as Link
 
 import AI.NEAT.Innovations ( InnovationId )
-import AI.NEAT.Innovations.Neuron ( NeuronInnovation )
 import qualified AI.NEAT.Innovations.Neuron as NInnovation
 import qualified AI.NEAT.Innovations.Link as LInnovation
 
@@ -110,7 +109,7 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
                    let link_b = assert (isJust link_b_inno)
                                        (linkGene_ (fromJust link_b_inno) lw)
 
-                   return (link_a, link_a, neuron)
+                   return (link_a, link_b, neuron)
 
           return . Genome $
             (insNode     (Neuron.toLNode neuron)                    >>>

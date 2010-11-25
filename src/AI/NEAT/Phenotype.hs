@@ -9,12 +9,14 @@ module AI.NEAT.Phenotype
 
 
 ------------------------------------------------------------------------------
+import Data.Graph.Inductive              ( context, lab' )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
 
 import AI.NEAT.Genome           ( Genome )
 import AI.NEAT.Genome.Neuron    ( NeuronGene )
 import AI.NEAT.Genome.Link      ( LinkGene )
 import AI.NEAT.Phenotype.Neuron ( Neuron )
+import qualified AI.NEAT.Phenotype.Neuron as Neuron
 import AI.NEAT.Phenotype.Link   ( Link )
 
 
@@ -35,7 +37,9 @@ update = undefined
 ------------------------------------------------------------------------------
 -- | Returns current output of neural net.
 getOutputs :: NeuralNet -> [Double]
-getOutputs = undefined
+getOutputs (NeuralNet inp outp gr) = map (Neuron.output . get) ixs
+  where ixs = [inp + 1 .. inp + outp]
+        get = lab' . context gr
 
 
 ------------------------------------------------------------------------------

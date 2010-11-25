@@ -9,15 +9,16 @@ module AI.NEAT.Phenotype
 
 
 ------------------------------------------------------------------------------
-import Data.Graph.Inductive              ( context, lab' )
+import Data.Graph.Inductive              ( context, lab', gmap )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
 
 import AI.NEAT.Genome           ( Genome )
+import qualified AI.NEAT.Genome as Genome
 import AI.NEAT.Genome.Neuron    ( NeuronGene )
 import AI.NEAT.Genome.Link      ( LinkGene )
-import AI.NEAT.Phenotype.Neuron ( Neuron )
+import AI.NEAT.Phenotype.Neuron ( Neuron, neuron )
 import qualified AI.NEAT.Phenotype.Neuron as Neuron
-import AI.NEAT.Phenotype.Link   ( Link )
+import AI.NEAT.Phenotype.Link   ( Link, link )
 
 
 ------------------------------------------------------------------------------
@@ -45,9 +46,10 @@ getOutputs (NeuralNet inp outp gr) = map (Neuron.output . get) ixs
 ------------------------------------------------------------------------------
 -- | Builds neural net from genome.
 fromGenome :: Genome -> NeuralNet
-fromGenome = undefined
-  where neuronFromGene :: NeuronGene -> Neuron
-        neuronFromGene = undefined
+fromGenome genome = NeuralNet (Genome.inputs genome)
+                              (Genome.outputs genome)
+                              (gmap transform $ Genome.graph genome)
+  where transform (adj_a, node, ngene, adj_b) =
+          (map transformAdj adj_a, node, neuron ngene, map transformAdj adj_b)
 
-        linkFromGene :: LinkGene -> Link
-        linkFromGene = undefined
+        transformAdj (lgene, node) = (link lgene, node)

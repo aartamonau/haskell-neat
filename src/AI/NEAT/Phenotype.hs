@@ -1,17 +1,27 @@
 ------------------------------------------------------------------------------
+{-# LANGUAGE ViewPatterns #-}
+
+
+------------------------------------------------------------------------------
 
 
 ------------------------------------------------------------------------------
 module AI.NEAT.Phenotype
        (
-         NeuralNet
+         NeuralNet,
+
+         update,
+         getOutputs,
+         fromGenome
        ) where
 
 
 ------------------------------------------------------------------------------
 import Data.Graph.Inductive              ( context, lab', gmap )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
+import Data.List ( foldl' )
 
+import AI.NEAT.Common           ( NeuronType ( Input ) )
 import AI.NEAT.Genome           ( Genome )
 import qualified AI.NEAT.Genome as Genome
 import AI.NEAT.Genome.Neuron    ( NeuronGene )
@@ -19,20 +29,44 @@ import AI.NEAT.Genome.Link      ( LinkGene )
 import AI.NEAT.Phenotype.Neuron ( Neuron, neuron )
 import qualified AI.NEAT.Phenotype.Neuron as Neuron
 import AI.NEAT.Phenotype.Link   ( Link, link )
+import qualified AI.NEAT.Phenotype.Link as Link
+import AI.NEAT.Utils.Graph      ( bfsGmap )
 
 
 ------------------------------------------------------------------------------
 data NeuralNet =
   NeuralNet { inputs  :: !Int
             , outputs :: !Int
-            , net     :: !(Gr Neuron Link)
+            , graph   :: !(Gr Neuron Link)
             }
+
+
+------------------------------------------------------------------------------
+-- | Lifts graph transformation into a genome.
+liftGraphTransform :: (Gr Neuron Link -> Gr Neuron Link)
+                   -> NeuralNet
+                   -> NeuralNet
+liftGraphTransform f nn = nn { graph = f (graph nn) }
 
 
 ------------------------------------------------------------------------------
 -- | Recomputes outputs of all the neurons according to new input.
 update :: NeuralNet -> [Double] -> NeuralNet
-update = undefined
+update nn vs = liftGraphTransform (bfsGmap updateContext is) nn
+  where updateContext (adj_a, node, neuron, adj_b) =
+          (adj_a, node, Neuron.update neuron input, adj_b)
+
+          where weights = map (Link.weight . fst) adj_a
+                outputs = map (Neuron.output . get . snd) adj_a
+                sum'    = foldl' (+) 0
+
+                input | Neuron.tpy neuron == Input = vs !! node
+                      | otherwise =
+                           sum' $ zipWith (*) weights outputs
+
+        gr  = graph nn
+        is  = [0 .. inputs nn - 1]
+        get = lab' . context gr
 
 
 ------------------------------------------------------------------------------

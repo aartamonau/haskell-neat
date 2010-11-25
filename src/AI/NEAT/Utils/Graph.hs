@@ -19,6 +19,7 @@ module AI.NEAT.Utils.Graph
        (
          -- * Miscellaneous
          modifyEdges,
+         bfsGmap,
 
          -- * Monadic computations
          --
@@ -36,8 +37,9 @@ module AI.NEAT.Utils.Graph
 
 
 ------------------------------------------------------------------------------
-import Data.Graph.Inductive ( DynGraph, Node, (&),
+import Data.Graph.Inductive ( DynGraph, Node, Context, (&),
                               match, nmap, emap, ufold, empty )
+import Data.Graph.Inductive.Query ( bfsnWith )
 
 
 ------------------------------------------------------------------------------
@@ -119,3 +121,13 @@ emapM :: (Monad m, DynGraph gr)
       -> gr a b
       -> m (gr a c)
 emapM k g = sequenceGrE (emap k g)
+
+
+------------------------------------------------------------------------------
+-- | Maps function over contexts in BFS order.
+bfsGmap :: DynGraph gr
+        => (Context a b -> Context c d)
+        -> [Node]
+        -> gr a b
+        -> gr c d
+bfsGmap f ns g = foldr (&) empty $ bfsnWith f ns g

@@ -23,7 +23,7 @@ data Neuron =
 
          , output             :: !Double
          }
-
+  deriving Show
 
 ------------------------------------------------------------------------------
 -- | Constructs neuron from a gene.

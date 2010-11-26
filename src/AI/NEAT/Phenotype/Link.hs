@@ -18,6 +18,7 @@ import qualified AI.NEAT.Genome.Link as LinkGene
 data Link =
   Link { weight :: !Double
        }
+  deriving Show
 
 
 ------------------------------------------------------------------------------

@@ -294,10 +294,12 @@ mutateActivationResponses :: Genome -- ^ Genome to perform mutations on.
                           -> NEAT Genome
 mutateActivationResponses = liftGraphTransformM $ nmapM doMutate
   where doMutate :: NeuronGene -> NEAT NeuronGene
-        doMutate n =
-          diceRoll activationMutationRate (return n) $ do
-            ar <- mutateAR (Neuron.activationResponse n)
-            return n { Neuron.activationResponse = ar }
+        doMutate n
+          | Neuron.tpy n == Input ||
+            Neuron.tpy n == Bias = return n
+          | otherwise = diceRoll activationMutationRate (return n) $ do
+                          ar <- mutateAR (Neuron.activationResponse n)
+                          return n { Neuron.activationResponse = ar }
 
         -- TODO: thread perturbation from outside?
         mutateAR :: Double -> NEAT Double

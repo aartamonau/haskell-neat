@@ -65,7 +65,7 @@ update nn vs = liftGraphTransform (bfsGmap updateContext is) nn
                            sum' $ zipWith (*) weights outputs
 
         gr  = graph nn
-        is  = [0 .. inputs nn - 1]
+        is  = [0 .. inputs nn]  -- inputs and bias
         get = lab' . context gr
 
 

@@ -25,6 +25,8 @@ import qualified AI.NEAT.Innovations.Neuron as NInnovation
 
 ------------------------------------------------------------------------------
 -- | Neuron gene.
+
+-- TODO: activation response should not be here for Input and Bias neurons.
 data NeuronGene =
   NeuronGene { id                 :: !NeuronId
              , tpy                :: !NeuronType

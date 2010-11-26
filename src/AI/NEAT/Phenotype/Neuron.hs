@@ -1,4 +1,8 @@
 ------------------------------------------------------------------------------
+{-# LANGUAGE PatternGuards #-}
+
+
+------------------------------------------------------------------------------
 
 
 ------------------------------------------------------------------------------
@@ -11,7 +15,7 @@ module AI.NEAT.Phenotype.Neuron
 
 
 ------------------------------------------------------------------------------
-import AI.NEAT.Common        ( NeuronType )
+import AI.NEAT.Common        ( NeuronType ( Bias, Input ) )
 import AI.NEAT.Genome.Neuron ( NeuronGene )
 import qualified AI.NEAT.Genome.Neuron as NeuronGene
 
@@ -45,5 +49,9 @@ sigmoid a x = 1 / (1 + exp (-1 * x / a))
 update :: Neuron                -- ^ Neuron.
        -> Double                -- ^ Input.
        -> Neuron                -- ^ Updated neuron.
+
+-- TODO: excessive update for Bias neuron here
 update n input = n { output = output }
-  where output = sigmoid (activationResponse n) input
+  where output | Bias  <- tpy n = -1
+               | Input <- tpy n = input
+               | otherwise      = sigmoid (activationResponse n) input

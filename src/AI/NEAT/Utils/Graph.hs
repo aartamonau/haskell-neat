@@ -19,7 +19,7 @@ module AI.NEAT.Utils.Graph
        (
          -- * Miscellaneous
          modifyEdges,
-         bfsGmap,
+         bfsGNMap,
 
          -- * Monadic computations
          --
@@ -38,9 +38,9 @@ module AI.NEAT.Utils.Graph
 
 ------------------------------------------------------------------------------
 import Data.Graph.Inductive ( DynGraph, Node, Context, (&),
-                              match, nmap, emap, ufold, empty )
+                              match, nmap, emap, ufold, empty, context )
 import Data.Graph.Inductive.Query ( bfsnWith )
-
+import Data.List ( foldl' )
 
 ------------------------------------------------------------------------------
 -- | Modifies labels of all the edges between two nodes.
@@ -124,10 +124,17 @@ emapM k g = sequenceGrE (emap k g)
 
 
 ------------------------------------------------------------------------------
--- | Maps function over contexts in BFS order.
-bfsGmap :: DynGraph gr
-        => (Context a b -> Context c d)
-        -> [Node]
-        -> gr a b
-        -> gr c d
-bfsGmap f ns g = foldr (&) empty $ bfsnWith f ns g
+-- | Maps a function over the node labels of a graph. Unlike other maps this
+-- function passes full node context (i.e., you can observe all the edges
+-- coming from and out the node) and already mapped part of the graph to the
+-- function.
+bfsGNMap :: DynGraph gr
+         => (gr c b -> Context a b -> c)
+         -> [Node]
+         -> gr a b
+         -> gr c b
+bfsGNMap f ns g = foldl' k empty $ bfsnWith id ns g
+  where k gr ctx@(adj_a, node, _, adj_b) =
+          (adj_a, node, f gr fullCtx, adj_b) & gr
+
+          where fullCtx = context g node

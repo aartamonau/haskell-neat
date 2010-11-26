@@ -30,7 +30,7 @@ import AI.NEAT.Phenotype.Neuron ( Neuron, neuron )
 import qualified AI.NEAT.Phenotype.Neuron as Neuron
 import AI.NEAT.Phenotype.Link   ( Link, link )
 import qualified AI.NEAT.Phenotype.Link as Link
-import AI.NEAT.Utils.Graph      ( bfsGmap )
+import AI.NEAT.Utils.Graph      ( bfsGNMap )
 
 
 ------------------------------------------------------------------------------
@@ -52,9 +52,9 @@ liftGraphTransform f nn = nn { graph = f (graph nn) }
 ------------------------------------------------------------------------------
 -- | Recomputes outputs of all the neurons according to new input.
 update :: NeuralNet -> [Double] -> NeuralNet
-update nn vs = liftGraphTransform (bfsGmap updateContext is) nn
-  where updateContext (adj_a, node, neuron, adj_b) =
-          (adj_a, node, Neuron.update neuron input, adj_b)
+update nn vs = liftGraphTransform (bfsGNMap updateNeuron is) nn
+  where updateNeuron gr (adj_a, node, neuron, adj_b) =
+          Neuron.update neuron input
 
           where weights = map (Link.weight . fst) adj_a
                 outputs = map (Neuron.output . get . snd) adj_a
@@ -64,9 +64,9 @@ update nn vs = liftGraphTransform (bfsGmap updateContext is) nn
                       | otherwise =
                            sum' $ zipWith (*) weights outputs
 
-        gr  = graph nn
-        is  = [0 .. inputs nn]  -- inputs and bias
-        get = lab' . context gr
+                get     = lab' . context gr
+
+        is = [0 .. inputs nn]  -- inputs and bias
 
 
 ------------------------------------------------------------------------------

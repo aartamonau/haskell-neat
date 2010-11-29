@@ -22,7 +22,7 @@ import Data.Graph.Inductive ( LNode, Context,
                               insNode, insNodes, insEdge, insEdges,
                               match, noNodes, labNodes, labEdges )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
-import Data.List ( sortBy, nubBy )
+import Data.List ( sortBy, nubBy, groupBy )
 import Data.Maybe ( isNothing, isJust, fromJust )
 
 
@@ -427,3 +427,46 @@ crossover_ x y = crossover (x, 1) (y, 0)
 
 
 ------------------------------------------------------------------------------
+-- | Returns compatibility score for two genomes.
+compatibility :: Genome -> Genome -> NEAT Double
+compatibility a b = do
+  links <- segment . map snd <$> origLinkGenes a b
+  let stats = getStats links
+
+  scoreExcess   <- asks Config.compatScoreExcess
+  scoreDisjoint <- asks Config.compatScoreDisjoint
+  scoreMatched  <- asks Config.compatScoreMatched
+
+  let score = (scoreExcess   * (excess stats)           / (longest stats)) +
+              (scoreDisjoint * (disjoint stats)         / (longest stats)) +
+              (scoreMatched  * (weightDifference stats) / (matched stats))
+
+  return score
+
+  where segment :: [MergeTag LinkGene] -> [MergeTag [LinkGene]]
+        segment = map join . groupBy p
+          where p (MLeft  _)   (MLeft  _)   = True
+                p (MRight _)   (MRight _)   = True
+                p (MBoth  _ _) (MBoth  _ _) = True
+                p _          _              = False
+
+                join (MLeft  x : xs)  = MLeft  (x : map unwrap xs)
+                join (MRight x : xs)  = MRight (x : map unwrap xs)
+                join (MBoth x y : xs) = MBoth  (x : xs') (y : ys')
+                  where (xs', ys') = unzip $ map unwrap2 xs
+
+                unwrap (MLeft x)  = x
+                unwrap (MRight x) = x
+                unwrap _          = assert False (error "assertion")
+
+                unwrap2 (MBoth x y) = (x, y)
+                unwrap2 _           = assert False (error "assertion")
+
+        getStats :: [MergeTag [LinkGene]] -> (Int, Int, Int, Int, Double)
+        getStats = undefined
+
+        matched          (m, _, _, _, _) = fromIntegral m
+        excess           (_, e, _, _, _) = fromIntegral e
+        disjoint         (_, _, d, _, _) = fromIntegral d
+        longest          (_, _, _, l, _) = fromIntegral l
+        weightDifference (_, _, _, _, w) = w

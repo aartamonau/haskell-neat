@@ -24,6 +24,10 @@ data NEATConfig =
              , loopedLinkTries           :: Int
 
              , linkTries                 :: Int
+
+             , compatScoreExcess         :: Double
+             , compatScoreDisjoint       :: Double
+             , compatScoreMatched        :: Double
              }
 
 
@@ -43,4 +47,8 @@ defaultNEATConfig =
              , loopedLinkTries           = 5
 
              , linkTries                 = 5
+
+             , compatScoreExcess         = 1
+             , compatScoreDisjoint       = 1
+             , compatScoreMatched        = 0.4
              }

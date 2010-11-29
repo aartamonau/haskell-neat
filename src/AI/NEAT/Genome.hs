@@ -29,15 +29,7 @@ import Data.Maybe ( isNothing, isJust, fromJust )
 import AI.NEAT.Monad ( NEAT,
                        random, randomR, randomIntR, randomChoice, diceRoll,
                        findNeuronInnovation, findLinkInnovation )
-import AI.NEAT.Config ( NEATConfig ( addNeuronRate,
-                                     activationMutationRate,
-                                     maxActivationPerturbation,
-                                     weightMutationRate,
-                                     maxWeightPerturbation,
-                                     newWeightChance,
-                                     loopedLinkTries,
-                                     linkTries
-                                   ) )
+import qualified AI.NEAT.Config as Config
 
 import AI.NEAT.Common ( NeuronId, NeuronType (..), isSensor )
 
@@ -136,7 +128,7 @@ modifyLink (src, dst) = liftGraphTransform . modifyEdges edge
     -- TODO: size threshold
     -- TODO: bias to old links
 addNeuron :: Genome -> NEAT Genome
-addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
+addNeuron genome = diceRoll Config.addNeuronRate (return genome) addNeuronLoop
   where addNeuronLoop = do
           link <- matching (randomLink genome) suitableLink
           doAddNeuron link
@@ -194,7 +186,8 @@ addNeuron genome = diceRoll addNeuronRate (return genome) addNeuronLoop
 -- | Tries to add loop link in some node.
 addLoopedLink :: Genome -> NEAT Genome
 addLoopedLink g = do
-  node <- matchingTries (randomGraphNode g) isSuitable =<< asks loopedLinkTries
+  node <- matchingTries (randomGraphNode g) isSuitable
+                                        =<< asks Config.loopedLinkTries
 
   case node of
     Nothing -> return g
@@ -216,7 +209,8 @@ addLoopedLink g = do
 addLink :: Genome -> NEAT Genome
 addLink g = do
   -- TODO: ugly?
-  edge <- join <$> (matchingTries findCandidate isJust =<< asks linkTries)
+  edge <- join <$> (matchingTries findCandidate isJust
+                                            =<< asks Config.linkTries)
 
   case edge of
     Nothing -> return g
@@ -297,14 +291,14 @@ mutateActivationResponses = liftGraphTransformM $ nmapM doMutate
         doMutate n
           | Neuron.tpy n == Input ||
             Neuron.tpy n == Bias = return n
-          | otherwise = diceRoll activationMutationRate (return n) $ do
+          | otherwise = diceRoll Config.activationMutationRate (return n) $ do
                           ar <- mutateAR (Neuron.activationResponse n)
                           return n { Neuron.activationResponse = ar }
 
         -- TODO: thread perturbation from outside?
         mutateAR :: Double -> NEAT Double
         mutateAR ar = do
-          perturbation <- asks maxActivationPerturbation
+          perturbation <- asks Config.maxActivationPerturbation
           r            <- randomR (-perturbation, perturbation)
 
           return (ar + r)
@@ -317,15 +311,16 @@ mutateWeights :: Genome         -- ^ Genome to perform mutations on.
 mutateWeights = liftGraphTransformM $ emapM doMutate
   where doMutate :: LinkGene -> NEAT LinkGene
         doMutate l =
-          diceRoll weightMutationRate (return l) $
-                   diceRoll newWeightChance (mutateWeight l) (newWeight l)
+          diceRoll Config.weightMutationRate (return l) $
+                   diceRoll Config.newWeightChance
+                            (mutateWeight l) (newWeight l)
 
         newWeight :: LinkGene -> NEAT LinkGene
         newWeight l = random >>= \w -> return $ l { Link.weight = w }
 
         mutateWeight :: LinkGene -> NEAT LinkGene
         mutateWeight l = do
-          perturbation <- asks maxWeightPerturbation
+          perturbation <- asks Config.maxWeightPerturbation
           r            <- randomR (-perturbation, perturbation)
 
           let weight = Link.weight l

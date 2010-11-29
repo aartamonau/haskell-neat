@@ -343,54 +343,6 @@ mutateWeights = liftGraphTransformM $ emapM doMutate
 type Fitness = Double
 
 
-crossover :: (Genome, Fitness)
-          -> (Genome, Fitness)
-          -> NEAT Genome
-crossover gx gy = do
-  winnerGenes    <- linkGenes winner
-  loserGenes     <- linkGenes loser
-  taggedGenes    <- doCrossover winnerGenes loserGenes
-
-  let offspringGenes = map uneither taggedGenes
-
-  -- TODO: use Data.Set here
-  let offspringNeurons =
-        nubBy ((==) `on` Neuron.id) $ concatMap extractNeurons taggedGenes
-
-  return $ insertNeurons offspringNeurons >>>
-           insertLinks   offspringGenes   $ emptyGenome
-
-  where swap (x, fx) (y, fy) | fx >= fy  = (x, y)
-                             | otherwise = (y, x)
-
-        (winner, loser) = swap gx gy
-
-        emptyGenome = Genome (inputs winner) (outputs winner) empty
-
-        -- winner first
-        doCrossover [] _  = return []
-        doCrossover ws [] = return (map (Left . snd) ws)
-        doCrossover ws@((wid, w) : ws') ls@((lid, l) : ls')
-          | wid < lid = (Left w:) <$> doCrossover ws' ls
-          | wid > lid = doCrossover ws ls'
-          | otherwise = do
-            h <- randomChoice (Left w) (Right l)
-            (h:) <$> doCrossover ws' ls'
-
-        uneither (Left x)  = x
-        uneither (Right x) = x
-
-        extractNeurons (Left l)  = neurons winner l
-        extractNeurons (Right l) = neurons loser l
-
-        neurons genome link = [getNeuron genome (Link.from link),
-                               getNeuron genome (Link.to link)]
-
--- | Temporary function to test crossover.
-crossover_ :: Genome -> Genome -> NEAT Genome
-crossover_ x y = crossover (x, 1) (y, 0)
-
-
 ------------------------------------------------------------------------------
 -- | Returns a list o link genes of genome accompanied by the innovation id in
 -- which that link has been introduced. The list is sorted by innovation id.
@@ -410,3 +362,73 @@ linkGenes (graph -> g) = do
           return (innovation, link)
 
         label (_, _, l) = l
+
+
+------------------------------------------------------------------------------
+-- | Tag describing the origin of the object in a mergin procedure.
+data MergeTag a = MLeft  a
+                | MRight a
+                | MBoth  a a
+
+
+------------------------------------------------------------------------------
+-- | Compares two genomes and returns a list of all the links available in
+-- either of them. Each link is tagged by its origin.
+origLinkGenes :: Genome
+              -> Genome
+              -> NEAT [(InnovationId, MergeTag LinkGene)]
+origLinkGenes left right = do
+  leftGenes  <- linkGenes left
+  rightGenes <- linkGenes right
+
+  return $ go leftGenes rightGenes
+
+  where go [] rs = tags MRight rs
+        go ls [] = tags MLeft  ls
+        go ls@((lid, l) : ls') rs@((rid, r) : rs')
+            | lid < rid = (lid, MLeft  l)   : go ls' rs
+            | lid > rid = (rid, MRight r)   : go ls  rs'
+            | otherwise = (rid, MBoth  r l) : go ls' rs'
+
+        tag f (id, link) = (id, f link)
+        tags f           = map (tag f)
+
+
+------------------------------------------------------------------------------
+crossover :: (Genome, Fitness)
+          -> (Genome, Fitness)
+          -> NEAT Genome
+crossover gx gy = do
+  (offspringLinks, offspringNeurons) <-
+      doCrossover =<< origLinkGenes winner loser
+
+  return $ insertNeurons offspringNeurons >>>
+           insertLinks   offspringLinks   $ emptyGenome
+
+  where swap (x, fx) (y, fy) | fx >= fy  = (x, y)
+                             | otherwise = (y, x)
+
+        (winner, loser) = swap gx gy
+
+        emptyGenome = Genome (inputs winner) (outputs winner) empty
+
+        doCrossover os = do
+            (links, neurons) <- fmap unzip $ sequence $ foldr (k . snd) [] os
+
+            -- TODO: use Data.Set here
+            return (links, nubBy ((==) `on` Neuron.id) $ concat neurons)
+            where k (MLeft  x)  xs = return (x, neurons winner x) : xs
+                  k (MRight _)  xs = xs
+                  k (MBoth x y) xs = randomChoice (x, neurons winner x)
+                                                  (y, neurons loser y) : xs
+
+        neurons genome link = [getNeuron genome (Link.from link),
+                               getNeuron genome (Link.to link)]
+
+
+-- | Temporary function to test crossover.
+crossover_ :: Genome -> Genome -> NEAT Genome
+crossover_ x y = crossover (x, 1) (y, 0)
+
+
+------------------------------------------------------------------------------

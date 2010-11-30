@@ -12,8 +12,11 @@ module AI.NEAT.Genome
 import Control.Applicative ( (<$>) )
 import Control.Arrow ( (>>>) )
 import Control.Exception ( assert )
-import Control.Monad ( replicateM, join )
+import Control.Monad ( mapM_, replicateM, join, ap )
 import Control.Monad.Reader ( asks )
+
+import Control.Monad.ST.Strict ( ST, runST )
+import Data.STRef ( newSTRef, readSTRef, writeSTRef, modifySTRef )
 
 import Data.Function ( on )
 import Data.Graph.Inductive ( LNode, Context,
@@ -22,7 +25,7 @@ import Data.Graph.Inductive ( LNode, Context,
                               insNode, insNodes, insEdge, insEdges,
                               match, noNodes, labNodes, labEdges )
 import Data.Graph.Inductive.PatriciaTree ( Gr )
-import Data.List ( sortBy, nubBy, groupBy )
+import Data.List ( sortBy, nubBy, groupBy, foldl' )
 import Data.Maybe ( isNothing, isJust, fromJust )
 
 
@@ -427,21 +430,21 @@ crossover_ x y = crossover (x, 1) (y, 0)
 
 
 ------------------------------------------------------------------------------
--- | Returns compatibility score for two genomes.
+-- | Returns compatibility distance for two genomes.
 compatibility :: Genome -> Genome -> NEAT Double
 compatibility a b = do
   links <- segment . map snd <$> origLinkGenes a b
-  let stats = getStats links
+  let stats = runST (getStatsST links)
 
-  scoreExcess   <- asks Config.compatScoreExcess
-  scoreDisjoint <- asks Config.compatScoreDisjoint
-  scoreMatched  <- asks Config.compatScoreMatched
+  weightExcess   <- asks Config.compatWeightExcess
+  weightDisjoint <- asks Config.compatWeightDisjoint
+  weightMatched  <- asks Config.compatWeightMatched
 
-  let score = (scoreExcess   * (excess stats)           / (longest stats)) +
-              (scoreDisjoint * (disjoint stats)         / (longest stats)) +
-              (scoreMatched  * (weightDifference stats) / (matched stats))
+  let distance = (weightExcess   * (excess stats)           / (longest stats)) +
+                 (weightDisjoint * (disjoint stats)         / (longest stats)) +
+                 (weightMatched  * (weightDifference stats) / (matched stats))
 
-  return score
+  return distance
 
   where segment :: [MergeTag LinkGene] -> [MergeTag [LinkGene]]
         segment = map join . groupBy p
@@ -462,8 +465,48 @@ compatibility a b = do
                 unwrap2 (MBoth x y) = (x, y)
                 unwrap2 _           = assert False (error "assertion")
 
-        getStats :: [MergeTag [LinkGene]] -> (Int, Int, Int, Int, Double)
-        getStats = undefined
+        getStatsST :: [MergeTag [LinkGene]] -> ST s (Int, Int, Int, Int, Double)
+        getStatsST segments = do
+          matched          <- newSTRef 0
+          excess           <- newSTRef 0
+          disjoint         <- newSTRef 0
+          weightDifference <- newSTRef 0
+
+          lengthLeft       <- newSTRef 0
+          lengthRight      <- newSTRef 0
+
+          let updateDisjoint n length = do
+                excess_ <- readSTRef excess
+                modifySTRef disjoint (+excess_)
+                writeSTRef excess n
+                modifySTRef length (+n)
+
+          let updateMatched (map Link.weight -> ls1)
+                            (map Link.weight -> ls2) = do
+                modifySTRef matched (+n)
+                modifySTRef lengthLeft  (+n)
+                modifySTRef lengthRight (+n)
+
+                let diff = foldl' (+) 0 $ zipWith ((abs.) . (-)) ls1 ls2
+                modifySTRef weightDifference (+diff)
+
+                where n = length ls1
+
+          let update (MLeft  ls)      = updateDisjoint (length ls) lengthLeft
+              update (MRight ls)      = updateDisjoint (length ls) lengthRight
+              update (MBoth  ls1 ls2) = updateMatched ls1 ls2
+
+          mapM_ update segments
+
+          longest <- return max `ap` readSTRef lengthLeft
+                                `ap` readSTRef lengthRight
+
+          -- No Applicative instance for ST
+          return (,,,,) `ap` readSTRef matched
+                        `ap` readSTRef excess
+                        `ap` readSTRef disjoint
+                        `ap` (return longest)
+                        `ap` readSTRef weightDifference
 
         matched          (m, _, _, _, _) = fromIntegral m
         excess           (_, e, _, _, _) = fromIntegral e

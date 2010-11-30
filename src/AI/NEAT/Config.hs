@@ -25,9 +25,9 @@ data NEATConfig =
 
              , linkTries                 :: Int
 
-             , compatScoreExcess         :: Double
-             , compatScoreDisjoint       :: Double
-             , compatScoreMatched        :: Double
+             , compatWeightExcess        :: Double
+             , compatWeightDisjoint      :: Double
+             , compatWeightMatched       :: Double
              }
 
 
@@ -48,7 +48,7 @@ defaultNEATConfig =
 
              , linkTries                 = 5
 
-             , compatScoreExcess         = 1
-             , compatScoreDisjoint       = 1
-             , compatScoreMatched        = 0.4
+             , compatWeightExcess        = 1
+             , compatWeightDisjoint      = 1
+             , compatWeightMatched       = 0.4
              }

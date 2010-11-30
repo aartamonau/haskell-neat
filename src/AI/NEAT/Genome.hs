@@ -52,15 +52,20 @@ import AI.NEAT.Utils.Monad ( matching, matchingTries )
 
 
 ------------------------------------------------------------------------------
+type GenomeId = Int
+
+
+------------------------------------------------------------------------------
 data Genome =
-  Genome { inputs  :: !Int
+  Genome { id      :: !GenomeId
+         , inputs  :: !Int
          , outputs :: !Int
          , graph   :: !(Gr NeuronGene LinkGene) }
 
 
 ------------------------------------------------------------------------------
-genome :: Int -> Int -> NEAT Genome
-genome inputs outputs = do
+genome :: GenomeId -> Int -> Int -> NEAT Genome
+genome gid inputs outputs = do
   is    <- replicateM inputs (neuronGene Input)
   bias  <- neuronGene Bias
   os    <- replicateM outputs (neuronGene Output)
@@ -70,7 +75,7 @@ genome inputs outputs = do
   let graph = mkGraph [ Neuron.toLNode n | n <- is ++ [bias] ++ os ]
                       [ Link.toLEdge l   | l <- links ]
 
-  return $ Genome inputs outputs graph
+  return $ Genome gid inputs outputs graph
 
 
 ------------------------------------------------------------------------------
@@ -393,10 +398,11 @@ origLinkGenes left right = do
 
 
 ------------------------------------------------------------------------------
-crossover :: (Genome, Fitness)
+crossover :: GenomeId
+          -> (Genome, Fitness)
           -> (Genome, Fitness)
           -> NEAT Genome
-crossover gx gy = do
+crossover gid gx gy = do
   (offspringLinks, offspringNeurons) <-
       doCrossover =<< origLinkGenes winner loser
 
@@ -408,7 +414,7 @@ crossover gx gy = do
 
         (winner, loser) = swap gx gy
 
-        emptyGenome = Genome (inputs winner) (outputs winner) empty
+        emptyGenome = Genome gid (inputs winner) (outputs winner) empty
 
         doCrossover os = do
             (links, neurons) <- fmap unzip $ sequence $ foldr (k . snd) [] os
@@ -425,8 +431,8 @@ crossover gx gy = do
 
 
 -- | Temporary function to test crossover.
-crossover_ :: Genome -> Genome -> NEAT Genome
-crossover_ x y = crossover (x, 1) (y, 0)
+crossover_ :: GenomeId -> Genome -> Genome -> NEAT Genome
+crossover_ gid x y = crossover gid (x, 1) (y, 0)
 
 
 ------------------------------------------------------------------------------

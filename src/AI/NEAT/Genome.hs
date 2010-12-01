@@ -12,7 +12,7 @@ module AI.NEAT.Genome
 import Control.Applicative ( (<$>) )
 import Control.Arrow ( (>>>) )
 import Control.Exception ( assert )
-import Control.Monad ( mapM_, replicateM, join, ap )
+import Control.Monad ( mapM, mapM_, join, ap )
 import Control.Monad.Reader ( asks )
 
 import Control.Monad.ST.Strict ( ST, runST )
@@ -67,9 +67,9 @@ genome gid = do
   inputs  <- asks Config.inputsNumber
   outputs <- asks Config.outputsNumber
 
-  is    <- replicateM inputs (neuronGene Input)
-  bias  <- neuronGene Bias
-  os    <- replicateM outputs (neuronGene Output)
+  is    <- mapM (neuronGene Input) [0 .. inputs - 1]
+  bias  <- neuronGene Bias inputs
+  os    <- mapM (neuronGene Output) [inputs + 1 .. inputs + outputs]
 
   links <- sequence [ linkGene x y =<< random | x <- bias : is, y <- os ]
 

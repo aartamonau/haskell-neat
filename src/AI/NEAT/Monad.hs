@@ -42,6 +42,7 @@ import AI.NEAT.Innovations.Neuron ( NeuronInnovation ( NeuronInnovation ) )
 import AI.NEAT.Innovations.Link   ( LinkInnovation ( LinkInnovation ) )
 
 import AI.NEAT.Config             ( NEATConfig, defaultNEATConfig )
+import qualified AI.NEAT.Config as Config
 
 
 ------------------------------------------------------------------------------
@@ -64,8 +65,9 @@ data NEATState =
 
 
 ------------------------------------------------------------------------------
-emptyNEATState :: NEATState
-emptyNEATState = NEATState 0 0 Map.empty Map.empty
+emptyNEATState :: NEATConfig -> NEATState
+emptyNEATState conf = NEATState nextNeuronId 0 Map.empty Map.empty
+  where nextNeuronId = Config.inputsNumber conf + Config.outputsNumber conf
 
 
 ------------------------------------------------------------------------------
@@ -87,8 +89,10 @@ instance Functor Rand where
 evalNEAT :: NEAT a -> IO a
 evalNEAT (NEAT n) = do
   mt <- newPureMT
-  return $ evalRandom (runReaderT (evalStateT n emptyNEATState)
+  return $ evalRandom (runReaderT (evalStateT n initialState)
                                   defaultNEATConfig) mt
+
+  where initialState = emptyNEATState defaultNEATConfig
 
 
 ------------------------------------------------------------------------------

@@ -36,10 +36,11 @@ data NeuronGene =
 
 
 ------------------------------------------------------------------------------
--- | Creates neuron gene of specified type.
-neuronGene :: NeuronType -> NEAT NeuronGene
-neuronGene tpy = do
-  neuronId <- getNeuronId
+-- | Creates non-hidden neurons.
+neuronGene :: NeuronType -> NeuronId -> NEAT NeuronGene
+neuronGene Hidden _ =
+  error "AI.NEAT.Genome.Neuron.neuronGene: invalid neuron gene type"
+neuronGene tpy neuronId = do
   return $ NeuronGene neuronId tpy 1
 
 

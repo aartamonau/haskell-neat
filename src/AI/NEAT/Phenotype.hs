@@ -34,8 +34,13 @@ import AI.NEAT.Utils.Graph      ( bfsGNMap )
 
 
 ------------------------------------------------------------------------------
+type NeuralNetId = Int
+
+
+------------------------------------------------------------------------------
 data NeuralNet =
-  NeuralNet { inputs  :: !Int
+  NeuralNet { id      :: !NeuralNetId
+            , inputs  :: !Int
             , outputs :: !Int
             , graph   :: !(Gr Neuron Link)
             }
@@ -72,7 +77,7 @@ update nn vs = liftGraphTransform (bfsGNMap updateNeuron is) nn
 ------------------------------------------------------------------------------
 -- | Returns current output of neural net.
 getOutputs :: NeuralNet -> [Double]
-getOutputs (NeuralNet inp outp gr) = map (Neuron.output . get) ixs
+getOutputs (NeuralNet _ inp outp gr) = map (Neuron.output . get) ixs
   where ixs = [inp + 1 .. inp + outp]
         get = lab' . context gr
 
@@ -80,7 +85,8 @@ getOutputs (NeuralNet inp outp gr) = map (Neuron.output . get) ixs
 ------------------------------------------------------------------------------
 -- | Builds neural net from genome.
 fromGenome :: Genome -> NeuralNet
-fromGenome genome = NeuralNet (Genome.inputs genome)
+fromGenome genome = NeuralNet (Genome.id genome)
+                              (Genome.inputs genome)
                               (Genome.outputs genome)
                               (gmap transform $ Genome.graph genome)
   where transform (adj_a, node, ngene, adj_b) =

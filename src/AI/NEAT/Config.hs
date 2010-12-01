@@ -11,7 +11,10 @@ module AI.NEAT.Config
 
 ------------------------------------------------------------------------------
 data NEATConfig =
-  NEATConfig { addNeuronRate             :: Double
+  NEATConfig { inputsNumber              :: Int
+             , outputsNumber             :: Int
+
+             , addNeuronRate             :: Double
 
              , weightMutationRate        :: Double
              , maxWeightPerturbation     :: Double
@@ -34,7 +37,10 @@ data NEATConfig =
 ------------------------------------------------------------------------------
 defaultNEATConfig :: NEATConfig
 defaultNEATConfig =
-  NEATConfig { addNeuronRate             = 0.08
+  NEATConfig { inputsNumber              = 2 -- absolutely random values;
+             , outputsNumber             = 1
+
+             , addNeuronRate             = 0.08
 
              , weightMutationRate        = 0.2
              , maxWeightPerturbation     = 0.5

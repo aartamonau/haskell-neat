@@ -58,14 +58,15 @@ type GenomeId = Int
 ------------------------------------------------------------------------------
 data Genome =
   Genome { id      :: !GenomeId
-         , inputs  :: !Int
-         , outputs :: !Int
          , graph   :: !(Gr NeuronGene LinkGene) }
 
 
 ------------------------------------------------------------------------------
-genome :: GenomeId -> Int -> Int -> NEAT Genome
-genome gid inputs outputs = do
+genome :: GenomeId -> NEAT Genome
+genome gid = do
+  inputs  <- asks Config.inputsNumber
+  outputs <- asks Config.outputsNumber
+
   is    <- replicateM inputs (neuronGene Input)
   bias  <- neuronGene Bias
   os    <- replicateM outputs (neuronGene Output)
@@ -75,7 +76,7 @@ genome gid inputs outputs = do
   let graph = mkGraph [ Neuron.toLNode n | n <- is ++ [bias] ++ os ]
                       [ Link.toLEdge l   | l <- links ]
 
-  return $ Genome gid inputs outputs graph
+  return $ Genome gid graph
 
 
 ------------------------------------------------------------------------------
@@ -414,7 +415,7 @@ crossover gid gx gy = do
 
         (winner, loser) = swap gx gy
 
-        emptyGenome = Genome gid (inputs winner) (outputs winner) empty
+        emptyGenome = Genome gid empty
 
         doCrossover os = do
             (links, neurons) <- fmap unzip $ sequence $ foldr (k . snd) [] os

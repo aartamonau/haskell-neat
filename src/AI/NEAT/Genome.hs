@@ -54,8 +54,9 @@ import AI.NEAT.Utils.Monad ( matching, matchingTries )
 
 ------------------------------------------------------------------------------
 data Genome =
-  Genome { id      :: !GenomeId
-         , graph   :: !(Gr NeuronGene LinkGene) }
+  Genome { id       :: !GenomeId
+         , mFitness :: !(Maybe Double)
+         , graph    :: !(Gr NeuronGene LinkGene) }
 
 
 ------------------------------------------------------------------------------
@@ -75,7 +76,15 @@ genome = do
   let graph = mkGraph [ Neuron.toLNode n | n <- is ++ [bias] ++ os ]
                       [ Link.toLEdge l   | l <- links ]
 
-  return $ Genome gid graph
+  return $ Genome gid Nothing graph
+
+
+------------------------------------------------------------------------------
+-- | Returns a fitness value associated with genome. Falls if fitness is not
+-- associated with the genome.
+fitness :: Genome -> Double
+fitness genome = assert (isJust fitness_) (fromJust fitness_)
+  where fitness_ = mFitness genome
 
 
 ------------------------------------------------------------------------------
@@ -398,12 +407,12 @@ origLinkGenes left right = do
 
 
 ------------------------------------------------------------------------------
-crossover :: (Genome, Fitness)
-          -> (Genome, Fitness)
+crossover :: Genome
+          -> Genome
           -> NEAT Genome
 crossover gx gy = do
   gid <- getGenomeId
-  let emptyGenome = Genome gid empty
+  let emptyGenome = Genome gid Nothing empty
 
   (offspringLinks, offspringNeurons) <-
       doCrossover =<< origLinkGenes winner loser
@@ -411,8 +420,8 @@ crossover gx gy = do
   return $ insertNeurons offspringNeurons >>>
            insertLinks   offspringLinks   $ emptyGenome
 
-  where swap (x, fx) (y, fy) | fx >= fy  = (x, y)
-                             | otherwise = (y, x)
+  where swap x y | fitness x >= fitness y  = (x, y)
+                 | otherwise               = (y, x)
 
         (winner, loser) = swap gx gy
 
@@ -428,11 +437,6 @@ crossover gx gy = do
 
         neurons genome link = [getNeuron genome (Link.from link),
                                getNeuron genome (Link.to link)]
-
-
--- | Temporary function to test crossover.
-crossover_ :: Genome -> Genome -> NEAT Genome
-crossover_ x y = crossover (x, 1) (y, 0)
 
 
 ------------------------------------------------------------------------------

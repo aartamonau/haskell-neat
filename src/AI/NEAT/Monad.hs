@@ -35,7 +35,7 @@ import System.Random.Mersenne.Pure64    ( newPureMT )
 
 
 ------------------------------------------------------------------------------
-import AI.NEAT.Common             ( NeuronId )
+import AI.NEAT.Common             ( NeuronId, GenomeId )
 
 import AI.NEAT.Innovations        ( InnovationId )
 import AI.NEAT.Innovations.Neuron ( NeuronInnovation ( NeuronInnovation ) )
@@ -59,6 +59,7 @@ type LinkInnovationDB = Map (NeuronId, NeuronId) LinkInnovation
 data NEATState =
   NEATState { nextNeuronId      :: !NeuronId
             , nextInnovationId  :: !InnovationId
+            , nextGenomeId      :: !GenomeId
             , neuronInnovations :: !NeuronInnovationDB
             , linkInnovations   :: !LinkInnovationDB
             }
@@ -66,7 +67,7 @@ data NEATState =
 
 ------------------------------------------------------------------------------
 emptyNEATState :: NEATConfig -> NEATState
-emptyNEATState conf = NEATState nextNeuronId 0 Map.empty Map.empty
+emptyNEATState conf = NEATState nextNeuronId 0 0 Map.empty Map.empty
   where nextNeuronId = Config.inputsNumber conf + Config.outputsNumber conf
 
 
@@ -102,6 +103,16 @@ getNeuronId = do
   modify (\state -> state { nextNeuronId = neuronId + 1 })
 
   return neuronId
+
+
+------------------------------------------------------------------------------
+-- | Returns an identifier for new genome.
+getGenomeId :: NEAT GenomeId
+getGenomeId = do
+  genomeId <- gets nextGenomeId
+  modify (\state -> state { nextGenomeId = genomeId + 1 })
+
+  return genomeId
 
 
 ------------------------------------------------------------------------------

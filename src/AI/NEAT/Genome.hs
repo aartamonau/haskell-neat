@@ -30,11 +30,12 @@ import Data.Maybe ( isNothing, isJust, fromJust )
 
 
 import AI.NEAT.Monad ( NEAT,
+                       getGenomeId,
                        random, randomR, randomIntR, randomChoice, diceRoll,
                        findNeuronInnovation, findLinkInnovation )
 import qualified AI.NEAT.Config as Config
 
-import AI.NEAT.Common ( NeuronId, NeuronType (..), isSensor )
+import AI.NEAT.Common ( NeuronId, GenomeId, NeuronType (..), isSensor, )
 
 import AI.NEAT.Genome.Neuron ( NeuronGene,
                                neuronGene, neuronGene_, neuronGeneHidden )
@@ -52,18 +53,16 @@ import AI.NEAT.Utils.Monad ( matching, matchingTries )
 
 
 ------------------------------------------------------------------------------
-type GenomeId = Int
-
-
-------------------------------------------------------------------------------
 data Genome =
   Genome { id      :: !GenomeId
          , graph   :: !(Gr NeuronGene LinkGene) }
 
 
 ------------------------------------------------------------------------------
-genome :: GenomeId -> NEAT Genome
-genome gid = do
+genome :: NEAT Genome
+genome = do
+  gid <- getGenomeId
+
   inputs  <- asks Config.inputsNumber
   outputs <- asks Config.outputsNumber
 
@@ -399,11 +398,13 @@ origLinkGenes left right = do
 
 
 ------------------------------------------------------------------------------
-crossover :: GenomeId
-          -> (Genome, Fitness)
+crossover :: (Genome, Fitness)
           -> (Genome, Fitness)
           -> NEAT Genome
-crossover gid gx gy = do
+crossover gx gy = do
+  gid <- getGenomeId
+  let emptyGenome = Genome gid empty
+
   (offspringLinks, offspringNeurons) <-
       doCrossover =<< origLinkGenes winner loser
 
@@ -414,8 +415,6 @@ crossover gid gx gy = do
                              | otherwise = (y, x)
 
         (winner, loser) = swap gx gy
-
-        emptyGenome = Genome gid empty
 
         doCrossover os = do
             (links, neurons) <- fmap unzip $ sequence $ foldr (k . snd) [] os
@@ -432,8 +431,8 @@ crossover gid gx gy = do
 
 
 -- | Temporary function to test crossover.
-crossover_ :: GenomeId -> Genome -> Genome -> NEAT Genome
-crossover_ gid x y = crossover gid (x, 1) (y, 0)
+crossover_ :: Genome -> Genome -> NEAT Genome
+crossover_ x y = crossover (x, 1) (y, 0)
 
 
 ------------------------------------------------------------------------------

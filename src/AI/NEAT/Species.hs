@@ -5,8 +5,9 @@
 ------------------------------------------------------------------------------
 module AI.NEAT.Species
        (
-         Species,
-         speciate
+         Species ( bestFitness, totalFitness, age, genomes ),
+         speciate,
+         averageFitness
        ) where
 
 
@@ -24,12 +25,12 @@ import AI.NEAT.Monad  ( NEAT )
 
 ------------------------------------------------------------------------------
 data Species =
-  Species { bestFitness    :: Double
-          , averageFitness :: Double
-          , age            :: Int
+  Species { bestFitness  :: Double
+          , totalFitness :: Double
+          , age          :: Int
 
           -- TODO: overkill?
-          , genomes        :: Seq Genome
+          , genomes      :: Seq Genome
           }
 
 
@@ -41,17 +42,30 @@ species genome = Species (fitness genome) (fitness genome) 0 (singleton genome)
 
 ------------------------------------------------------------------------------
 -- | Conses a genome into a species.
---
--- TODO: bestFitness, averageFitness
 cons :: Species -> Genome -> Species
-cons s g = s { genomes = gs |> g }
-  where gs = genomes s
+cons s@(Species best total _ gs) g =
+  s { bestFitness  = updBest
+    , totalFitness = updTotal
+    , genomes      = updGenomes
+    }
+
+  where updGenomes = gs |> g
+        updTotal   = total + genFitness
+        updBest    = max best genFitness
+
+        genFitness = fitness g
 
 
 ------------------------------------------------------------------------------
 -- | Returns the genome for which has been created.
 first :: Species -> Genome
 first (genomes -> gs) = assert (not $ Seq.null gs) (Seq.index gs 0)
+
+
+------------------------------------------------------------------------------
+-- | Returns an average fitness of a species.
+averageFitness :: Species -> Double
+averageFitness (Species _ total _ gs) = total / fromIntegral (Seq.length $ gs)
 
 
 ------------------------------------------------------------------------------

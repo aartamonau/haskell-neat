@@ -25,12 +25,12 @@ import AI.NEAT.Monad  ( NEAT )
 
 ------------------------------------------------------------------------------
 data Species =
-  Species { bestFitness  :: Double
-          , totalFitness :: Double
-          , age          :: Int
+  Species { bestFitness  :: !Double
+          , totalFitness :: !Double
+          , age          :: !Int
 
           -- TODO: overkill?
-          , genomes      :: Seq Genome
+          , genomes      :: !(Seq Genome)
           }
 
 

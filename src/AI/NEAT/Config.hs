@@ -31,6 +31,8 @@ data NEATConfig =
              , compatWeightExcess        :: Double
              , compatWeightDisjoint      :: Double
              , compatWeightMatched       :: Double
+
+             , speciesCompatThreshold    :: Double
              }
 
 
@@ -57,4 +59,6 @@ defaultNEATConfig =
              , compatWeightExcess        = 1
              , compatWeightDisjoint      = 1
              , compatWeightMatched       = 0.4
+
+             , speciesCompatThreshold    = 0.3
              }
